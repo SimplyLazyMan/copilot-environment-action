@@ -28,11 +28,18 @@ jobs:
           # Create a test Node.js project with hooks
           mkdir -p test-env
           cd test-env
+          
+          # Initialize git repository first
+          git init
+          git config user.name "Test User"
+          git config user.email "test@example.com"
+          git remote add origin https://github.com/${{ github.repository }}.git
+          
           npm init -y
           npm install --save-dev husky @commitlint/cli @commitlint/config-conventional lint-staged
 
-          # Setup husky
-          npx husky install
+          # Setup husky (modern approach)
+          npx husky init
           echo 'npx --no-install commitlint --edit "$1"' > .husky/commit-msg
           echo 'npx lint-staged' > .husky/pre-commit
           chmod +x .husky/commit-msg .husky/pre-commit
@@ -90,6 +97,12 @@ jobs:
           mkdir -p flutter-test/lib
           cd flutter-test
 
+          # Initialize git repository first
+          git init
+          git config user.name "Test User"
+          git config user.email "test@example.com"
+          git remote add origin https://github.com/${{ github.repository }}.git
+
           # Create pubspec.yaml
           cat > pubspec.yaml << EOF
           name: test_app
@@ -122,7 +135,7 @@ jobs:
         uses: ./
         with:
           operation: 'setup'
-          flutter-version: '3.35.1'
+          flutter-version: '3.24.3'
           working-directory: './flutter-test'
           debug: 'true'
 
