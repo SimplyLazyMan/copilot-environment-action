@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   test:
@@ -68,6 +69,9 @@ jobs:
           git init
           git config user.name "Test User"
           git config user.email "test@example.com"
+          
+          # Add a remote origin (required by the action)
+          git remote add origin https://github.com/${{ github.repository }}.git
 
           npm init -y
           npm install --save-dev husky @commitlint/cli @commitlint/config-conventional
@@ -86,6 +90,8 @@ jobs:
           operation: 'setup'
           working-directory: './test-project'
           debug: 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
 
       - name: Verify setup worked
         run: |
@@ -104,6 +110,8 @@ jobs:
           operation: 'cleanup'
           working-directory: './test-project'
           debug: 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
 
       - name: Verify cleanup worked
         run: |
@@ -135,6 +143,9 @@ jobs:
           git init
           git config user.name "Test User"
           git config user.email "test@example.com"
+          
+          # Add a remote origin (required by the action)
+          git remote add origin https://github.com/${{ github.repository }}.git
 
           npm init -y
           npm install --save-dev husky
