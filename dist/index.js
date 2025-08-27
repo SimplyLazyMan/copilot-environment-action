@@ -27902,7 +27902,9 @@ async function setupEnvironment(inputs, logger) {
             }
         }
         // Setup Node.js if required and not installed correctly
-        if (inputs.nodeVersion && inputs.nodeVersion !== '' && inputs.nodeVersion !== 'latest') {
+        if (inputs.nodeVersion &&
+            inputs.nodeVersion !== '' &&
+            inputs.nodeVersion !== 'latest') {
             const projectType = await runtimeManager.validateProjectType();
             if (projectType === 'node' || projectType === 'mixed') {
                 if (!runtimeInfo.node.installed ||

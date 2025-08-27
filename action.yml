@@ -1,5 +1,5 @@
 name: 'Copilot Environment Setup'
-version: 'v1.1.0'
+version: 'v1.2.0'
 description: 'Setup and manage development environment for GitHub Copilot agents'
 author: 'SimplyLazyMan'
 branding:
