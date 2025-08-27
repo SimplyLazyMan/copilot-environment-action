@@ -4,7 +4,7 @@ This file shows different ways to configure code ownership for your organization
 
 ## Basic Configuration (Current)
 
-The current CODEOWNERS file assigns @SimplyLazyMan as the owner for all files.
+The current CODEOWNERS file assigns @Joy-sameza as the owner for all files.
 
 ## Team-Based Ownership Examples
 
@@ -12,12 +12,12 @@ If you have GitHub teams in your organization, you can assign team ownership:
 
 ```bash
 # Replace individual with team ownership
-* @SimplyLazyMan/core-team
+* @Joy-sameza/core-team
 
 # Different teams for different areas
-src/ @SimplyLazyMan/developers
-.github/workflows/ @SimplyLazyMan/devops
-docs/ @SimplyLazyMan/documentation-team
+src/ @Joy-sameza/developers
+.github/workflows/ @Joy-sameza/devops
+docs/ @Joy-sameza/documentation-team
 ```
 
 ## Multi-Owner Configuration
@@ -26,12 +26,12 @@ For shared ownership across multiple people:
 
 ```bash
 # Multiple individual owners for everything
-* @SimplyLazyMan @co-maintainer @lead-dev
+* @Joy-sameza @co-maintainer @lead-dev
 
 # Different owners for different areas
-src/ @SimplyLazyMan @lead-developer
-.github/workflows/ @SimplyLazyMan @devops-engineer
-docs/ @SimplyLazyMan @technical-writer
+src/ @Joy-sameza @lead-developer
+.github/workflows/ @Joy-sameza @devops-engineer
+docs/ @Joy-sameza @technical-writer
 ```
 
 ## Granular Ownership Examples
@@ -40,17 +40,17 @@ For fine-grained control over specific components:
 
 ```bash
 # Global fallback
-* @SimplyLazyMan
+* @Joy-sameza
 
 # Specific source directories
-src/managers/ @SimplyLazyMan @backend-specialist
-src/utils/ @SimplyLazyMan @utility-expert
-src/types/ @SimplyLazyMan @typescript-lead
+src/managers/ @Joy-sameza @backend-specialist
+src/utils/ @Joy-sameza @utility-expert
+src/types/ @Joy-sameza @typescript-lead
 
 # Critical files requiring multiple approvals
-action.yml @SimplyLazyMan @architecture-team
-package.json @SimplyLazyMan @security-team
-.github/workflows/release.yml @SimplyLazyMan @release-manager
+action.yml @Joy-sameza @architecture-team
+package.json @Joy-sameza @security-team
+.github/workflows/release.yml @Joy-sameza @release-manager
 ```
 
 ## Organization Team Structure Example
@@ -59,41 +59,41 @@ For a larger organization with dedicated teams:
 
 ```bash
 # Default ownership
-* @SimplyLazyMan/maintainers
+* @Joy-sameza/maintainers
 
 # Source code ownership by expertise
-src/managers/ @SimplyLazyMan/backend-team
-src/utils/ @SimplyLazyMan/core-team
-src/types/ @SimplyLazyMan/typescript-team
+src/managers/ @Joy-sameza/backend-team
+src/utils/ @Joy-sameza/core-team
+src/types/ @Joy-sameza/typescript-team
 
 # Infrastructure and DevOps
-.github/workflows/ @SimplyLazyMan/devops-team
-Dockerfile* @SimplyLazyMan/devops-team
-docker-compose.yml @SimplyLazyMan/devops-team
+.github/workflows/ @Joy-sameza/devops-team
+Dockerfile* @Joy-sameza/devops-team
+docker-compose.yml @Joy-sameza/devops-team
 
 # Documentation and user-facing content
-README.md @SimplyLazyMan/docs-team
-ORGANIZATION_USAGE.md @SimplyLazyMan/docs-team
-docs/ @SimplyLazyMan/docs-team
+README.md @Joy-sameza/docs-team
+ORGANIZATION_USAGE.md @Joy-sameza/docs-team
+docs/ @Joy-sameza/docs-team
 
 # Security and compliance
-SECURITY.md @SimplyLazyMan/security-team
-LICENSE @SimplyLazyMan/legal-team
+SECURITY.md @Joy-sameza/security-team
+LICENSE @Joy-sameza/legal-team
 
 # Release management (requires multiple approvals)
-.github/workflows/release.yml @SimplyLazyMan/release-team @SimplyLazyMan/security-team
-package.json @SimplyLazyMan/release-team @SimplyLazyMan/security-team
+.github/workflows/release.yml @Joy-sameza/release-team @Joy-sameza/security-team
+package.json @Joy-sameza/release-team @Joy-sameza/security-team
 ```
 
 ## To Customize Your CODEOWNERS
 
 1. **Create GitHub Teams** (if using team ownership):
    - Go to your organization settings
-   - Create teams like `@SimplyLazyMan/core-team`, `@SimplyLazyMan/devops`, etc.
+   - Create teams like `@Joy-sameza/core-team`, `@Joy-sameza/devops`, etc.
    - Add members to appropriate teams
 
 2. **Edit the CODEOWNERS file**:
-   - Replace `@SimplyLazyMan` with your team or additional usernames
+   - Replace `@Joy-sameza` with your team or additional usernames
    - Add specific rules for different file patterns
    - Test with pull requests to ensure it works
 
