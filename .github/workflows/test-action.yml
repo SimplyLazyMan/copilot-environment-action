@@ -6,6 +6,9 @@ on:
     paths:
       - '.github/workflows/test-action.yml'
 
+env:
+  GITHUB_TOKEN: ${{ github.token }}
+
 jobs:
   test-auto-mode:
     name: 'Test Auto Mode'
@@ -56,8 +59,6 @@ jobs:
           operation: 'auto'
           working-directory: './test-env'
           debug: 'true'
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
 
       - name: Verify environment setup
         run: |
