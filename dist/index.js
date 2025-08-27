@@ -27397,6 +27397,424 @@ exports.PackageManager = PackageManager;
 
 /***/ }),
 
+/***/ 975:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.RuntimeManager = void 0;
+const exec = __importStar(__nccwpck_require__(8872));
+const fs = __importStar(__nccwpck_require__(9896));
+const path = __importStar(__nccwpck_require__(6928));
+class RuntimeManager {
+    logger;
+    workingDirectory;
+    constructor(logger, workingDirectory = '.') {
+        this.logger = logger;
+        this.workingDirectory = workingDirectory;
+    }
+    async checkRuntimes() {
+        this.logger.startGroup('Checking runtime environments');
+        const runtimeInfo = {
+            flutter: { installed: false },
+            node: { installed: false },
+            npm: { installed: false },
+        };
+        try {
+            // Check Flutter
+            await this.checkFlutter(runtimeInfo);
+            // Check Node.js
+            await this.checkNode(runtimeInfo);
+            // Check npm
+            await this.checkNpm(runtimeInfo);
+            this.logger.info('Runtime check completed', runtimeInfo);
+            return runtimeInfo;
+        }
+        catch (error) {
+            this.logger.error('Runtime check failed', error);
+            throw error;
+        }
+        finally {
+            this.logger.endGroup();
+        }
+    }
+    async setupFlutter(requiredVersion) {
+        this.logger.startGroup(`Setting up Flutter ${requiredVersion}`);
+        try {
+            // First check if Flutter is already installed with correct version
+            const runtimeInfo = await this.checkRuntimes();
+            if (runtimeInfo.flutter.installed && runtimeInfo.flutter.version) {
+                const currentVersion = this.normalizeVersion(runtimeInfo.flutter.version);
+                const targetVersion = this.normalizeVersion(requiredVersion);
+                if (currentVersion === targetVersion || requiredVersion === 'latest') {
+                    this.logger.info(`Flutter ${runtimeInfo.flutter.version} already installed`);
+                    return true;
+                }
+            }
+            // Install Flutter using the same approach as the composite action
+            await this.installFlutter(requiredVersion);
+            // Verify installation
+            const verifyInfo = await this.checkRuntimes();
+            if (!verifyInfo.flutter.installed) {
+                throw new Error('Flutter installation verification failed');
+            }
+            this.logger.info(`Flutter ${verifyInfo.flutter.version} installed successfully`);
+            return true;
+        }
+        catch (error) {
+            this.logger.error('Flutter setup failed', error);
+            return false;
+        }
+        finally {
+            this.logger.endGroup();
+        }
+    }
+    async setupNode(requiredVersion) {
+        this.logger.startGroup(`Setting up Node.js ${requiredVersion}`);
+        try {
+            // Check if Node.js is already installed with correct version
+            const runtimeInfo = await this.checkRuntimes();
+            if (runtimeInfo.node.installed && runtimeInfo.node.version) {
+                const currentMajor = this.extractMajorVersion(runtimeInfo.node.version);
+                const targetMajor = this.extractMajorVersion(requiredVersion);
+                if (currentMajor === targetMajor || requiredVersion === 'latest') {
+                    this.logger.info(`Node.js ${runtimeInfo.node.version} already installed`);
+                    return true;
+                }
+            }
+            // Install Node.js
+            await this.installNode(requiredVersion);
+            // Verify installation
+            const verifyInfo = await this.checkRuntimes();
+            if (!verifyInfo.node.installed) {
+                throw new Error('Node.js installation verification failed');
+            }
+            this.logger.info(`Node.js ${verifyInfo.node.version} installed successfully`);
+            return true;
+        }
+        catch (error) {
+            this.logger.error('Node.js setup failed', error);
+            return false;
+        }
+        finally {
+            this.logger.endGroup();
+        }
+    }
+    async checkFlutter(runtimeInfo) {
+        try {
+            let output = '';
+            const exitCode = await exec.exec('flutter', ['--version'], {
+                cwd: this.workingDirectory,
+                silent: true,
+                ignoreReturnCode: true,
+                listeners: {
+                    stdout: (data) => {
+                        output += data.toString();
+                    },
+                    stderr: (data) => {
+                        output += data.toString();
+                    },
+                },
+            });
+            if (exitCode === 0 && output.trim()) {
+                runtimeInfo.flutter.installed = true;
+                // Parse Flutter version from output
+                const versionMatch = output.match(/Flutter\s+(\S+)/i);
+                if (versionMatch) {
+                    runtimeInfo.flutter.version = versionMatch[1];
+                }
+                // Parse channel
+                const channelMatch = output.match(/channel\s+(\S+)/i);
+                if (channelMatch) {
+                    runtimeInfo.flutter.channel = channelMatch[1];
+                }
+                this.logger.debug(`Flutter found: ${runtimeInfo.flutter.version} (${runtimeInfo.flutter.channel})`);
+            }
+            else {
+                this.logger.debug('Flutter not found or not accessible');
+            }
+        }
+        catch (error) {
+            this.logger.debug('Flutter check failed', error);
+        }
+    }
+    async checkNode(runtimeInfo) {
+        try {
+            let output = '';
+            const exitCode = await exec.exec('node', ['--version'], {
+                cwd: this.workingDirectory,
+                silent: true,
+                ignoreReturnCode: true,
+                listeners: {
+                    stdout: (data) => {
+                        output += data.toString();
+                    },
+                },
+            });
+            if (exitCode === 0 && output.trim()) {
+                runtimeInfo.node.installed = true;
+                runtimeInfo.node.version = output.trim().replace('v', '');
+                this.logger.debug(`Node.js found: ${runtimeInfo.node.version}`);
+            }
+            else {
+                this.logger.debug('Node.js not found or not accessible');
+            }
+        }
+        catch (error) {
+            this.logger.debug('Node.js check failed', error);
+        }
+    }
+    async checkNpm(runtimeInfo) {
+        try {
+            let output = '';
+            const exitCode = await exec.exec('npm', ['--version'], {
+                cwd: this.workingDirectory,
+                silent: true,
+                ignoreReturnCode: true,
+                listeners: {
+                    stdout: (data) => {
+                        output += data.toString();
+                    },
+                },
+            });
+            if (exitCode === 0 && output.trim()) {
+                runtimeInfo.npm.installed = true;
+                runtimeInfo.npm.version = output.trim();
+                this.logger.debug(`npm found: ${runtimeInfo.npm.version}`);
+            }
+            else {
+                this.logger.debug('npm not found or not accessible');
+            }
+        }
+        catch (error) {
+            this.logger.debug('npm check failed', error);
+        }
+    }
+    async installFlutter(version) {
+        this.logger.info(`Installing Flutter ${version}`);
+        try {
+            // Use actions/setup-flutter or similar approach
+            // For now, we'll use a simplified version that calls the Flutter install script
+            const platform = process.platform;
+            const isWindows = platform === 'win32';
+            if (isWindows) {
+                await this.installFlutterWindows(version);
+            }
+            else {
+                await this.installFlutterUnix(version);
+            }
+        }
+        catch (error) {
+            this.logger.error('Flutter installation failed', error);
+            throw error;
+        }
+    }
+    async installFlutterWindows(version) {
+        // For Windows, we can use chocolatey or download directly
+        this.logger.info('Installing Flutter on Windows');
+        try {
+            // Try chocolatey first
+            await exec.exec('choco', ['install', 'flutter', '--version', version, '-y'], {
+                cwd: this.workingDirectory,
+                ignoreReturnCode: true,
+            });
+        }
+        catch {
+            this.logger.warn('Chocolatey installation failed, trying direct download');
+            // Fallback: Use PowerShell to download and install Flutter
+            const installScript = `
+        $flutterVersion = "${version}"
+        $flutterUrl = "https://storage.googleapis.com/flutter_infra_release/releases/stable/windows/flutter_windows_$flutterVersion-stable.zip"
+        $flutterZip = "$env:TEMP\\flutter.zip"
+        $flutterDir = "C:\\flutter"
+        
+        Write-Host "Downloading Flutter $flutterVersion..."
+        Invoke-WebRequest -Uri $flutterUrl -OutFile $flutterZip
+        
+        Write-Host "Extracting Flutter..."
+        Expand-Archive -Path $flutterZip -DestinationPath "C:\\" -Force
+        
+        Write-Host "Adding Flutter to PATH..."
+        $env:PATH += ";$flutterDir\\bin"
+        [Environment]::SetEnvironmentVariable("PATH", $env:PATH, [EnvironmentVariableTarget]::Machine)
+        
+        Write-Host "Flutter installation completed"
+      `;
+            await exec.exec('powershell', ['-Command', installScript], {
+                cwd: this.workingDirectory,
+            });
+        }
+    }
+    async installFlutterUnix(version) {
+        // For Unix systems (Linux/macOS)
+        this.logger.info('Installing Flutter on Unix system');
+        const installScript = `
+      set -e
+      FLUTTER_VERSION="${version}"
+      FLUTTER_DIR="$HOME/flutter"
+      
+      echo "Downloading Flutter $FLUTTER_VERSION..."
+      if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS
+        FLUTTER_URL="https://storage.googleapis.com/flutter_infra_release/releases/stable/macos/flutter_macos_$FLUTTER_VERSION-stable.zip"
+      else
+        # Linux
+        FLUTTER_URL="https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_$FLUTTER_VERSION-stable.tar.xz"
+      fi
+      
+      cd $HOME
+      curl -L -o flutter.archive "$FLUTTER_URL"
+      
+      if [[ "$OSTYPE" == "darwin"* ]]; then
+        unzip -q flutter.archive
+      else
+        tar xf flutter.archive
+      fi
+      
+      rm flutter.archive
+      
+      echo "Adding Flutter to PATH..."
+      echo 'export PATH="$HOME/flutter/bin:$PATH"' >> $HOME/.bashrc
+      export PATH="$HOME/flutter/bin:$PATH"
+      
+      echo "Flutter installation completed"
+    `;
+        await exec.exec('bash', ['-c', installScript], {
+            cwd: this.workingDirectory,
+        });
+    }
+    async installNode(version) {
+        this.logger.info(`Installing Node.js ${version}`);
+        try {
+            const platform = process.platform;
+            const isWindows = platform === 'win32';
+            if (isWindows) {
+                await this.installNodeWindows(version);
+            }
+            else {
+                await this.installNodeUnix(version);
+            }
+        }
+        catch (error) {
+            this.logger.error('Node.js installation failed', error);
+            throw error;
+        }
+    }
+    async installNodeWindows(version) {
+        // Use chocolatey or direct download for Windows
+        try {
+            // Try chocolatey first
+            const chocoVersion = version === 'latest' ? '' : `--version ${version}`;
+            await exec.exec('choco', ['install', 'nodejs', chocoVersion, '-y'], {
+                cwd: this.workingDirectory,
+                ignoreReturnCode: true,
+            });
+        }
+        catch {
+            this.logger.warn('Chocolatey Node.js installation failed');
+            throw new Error('Node.js installation failed on Windows');
+        }
+    }
+    async installNodeUnix(version) {
+        // Use NodeSource or NVM for Unix systems
+        const installScript = `
+      set -e
+      NODE_VERSION="${version}"
+      
+      echo "Installing Node.js $NODE_VERSION..."
+      
+      # Use NodeSource repository
+      if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS - use Homebrew if available
+        if command -v brew >/dev/null 2>&1; then
+          brew install node@$NODE_VERSION || brew install node
+        else
+          echo "Please install Homebrew or Node.js manually on macOS"
+          exit 1
+        fi
+      else
+        # Linux - use NodeSource
+        curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+        sudo apt-get install -y nodejs
+      fi
+      
+      echo "Node.js installation completed"
+    `;
+        await exec.exec('bash', ['-c', installScript], {
+            cwd: this.workingDirectory,
+        });
+    }
+    normalizeVersion(version) {
+        // Remove 'v' prefix and normalize version string
+        const result = version?.replace(/^v/, '')?.split('-')[0];
+        return result || '';
+    }
+    extractMajorVersion(version) {
+        // Extract major version number (e.g., "18.19.0" -> "18")
+        const normalized = this.normalizeVersion(version);
+        const result = normalized?.split('.')[0];
+        return result || '';
+    }
+    async validateProjectType() {
+        const workingDir = this.workingDirectory;
+        // Check for Flutter project
+        const pubspecPath = path.join(workingDir, 'pubspec.yaml');
+        const packageJsonPath = path.join(workingDir, 'package.json');
+        const hasFlutter = fs.existsSync(pubspecPath);
+        const hasNode = fs.existsSync(packageJsonPath);
+        if (hasFlutter && hasNode) {
+            return 'mixed';
+        }
+        else if (hasFlutter) {
+            return 'flutter';
+        }
+        else if (hasNode) {
+            return 'node';
+        }
+        else {
+            return 'unknown';
+        }
+    }
+}
+exports.RuntimeManager = RuntimeManager;
+
+
+/***/ }),
+
 /***/ 3404:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -27444,6 +27862,7 @@ const gitManager_1 = __nccwpck_require__(8519);
 const hookManager_1 = __nccwpck_require__(8692);
 const configManager_1 = __nccwpck_require__(4355);
 const packageManager_1 = __nccwpck_require__(9703);
+const runtimeManager_1 = __nccwpck_require__(975);
 const constants_1 = __nccwpck_require__(4230);
 async function setupEnvironment(inputs, logger) {
     const result = {
@@ -27461,8 +27880,45 @@ async function setupEnvironment(inputs, logger) {
         const hookManager = new hookManager_1.HookManager(logger, inputs.workingDirectory);
         const configManager = new configManager_1.ConfigManager(logger, inputs.workingDirectory);
         const packageManager = new packageManager_1.PackageManager(logger, inputs.workingDirectory);
-        // Step 1: Validate environment
-        logger.info('Step 1: Validating environment');
+        const runtimeManager = new runtimeManager_1.RuntimeManager(logger, inputs.workingDirectory);
+        // Step 1: Check and setup runtime environments
+        logger.info('Step 1: Checking runtime environments');
+        const runtimeInfo = await runtimeManager.checkRuntimes();
+        logger.debug('Current runtime info', runtimeInfo);
+        // Setup Flutter if required and not installed correctly
+        if (inputs.flutterVersion && inputs.flutterVersion !== '') {
+            const projectType = await runtimeManager.validateProjectType();
+            if (projectType === 'flutter' || projectType === 'mixed') {
+                if (!runtimeInfo.flutter.installed ||
+                    (runtimeInfo.flutter.version &&
+                        runtimeManager.normalizeVersion(runtimeInfo.flutter.version) !==
+                            runtimeManager.normalizeVersion(inputs.flutterVersion))) {
+                    logger.info(`Setting up Flutter ${inputs.flutterVersion}`);
+                    const flutterSetup = await runtimeManager.setupFlutter(inputs.flutterVersion);
+                    if (!flutterSetup) {
+                        result.warnings.push(`Flutter ${inputs.flutterVersion} setup failed`);
+                    }
+                }
+            }
+        }
+        // Setup Node.js if required and not installed correctly
+        if (inputs.nodeVersion && inputs.nodeVersion !== '' && inputs.nodeVersion !== 'latest') {
+            const projectType = await runtimeManager.validateProjectType();
+            if (projectType === 'node' || projectType === 'mixed') {
+                if (!runtimeInfo.node.installed ||
+                    (runtimeInfo.node.version &&
+                        runtimeManager.extractMajorVersion(runtimeInfo.node.version) !==
+                            runtimeManager.extractMajorVersion(inputs.nodeVersion))) {
+                    logger.info(`Setting up Node.js ${inputs.nodeVersion}`);
+                    const nodeSetup = await runtimeManager.setupNode(inputs.nodeVersion);
+                    if (!nodeSetup) {
+                        result.warnings.push(`Node.js ${inputs.nodeVersion} setup failed`);
+                    }
+                }
+            }
+        }
+        // Step 2: Validate environment
+        logger.info('Step 2: Validating environment');
         const validation = await validationManager.validateEnvironment();
         if (!validation.isValid) {
             result.errors.push(...validation.errors);

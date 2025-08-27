@@ -73,12 +73,13 @@ The `auto` operation automatically sets up the environment and schedules cleanup
 
 ### Setup Phase
 
-1. **Environment Validation**: Checks git installation, GitHub environment, and working directory
-2. **Configuration Backup**: Creates complete backup of `.husky/`, `package.json`, and git configuration
-3. **Hook Disabling**: Disables git hooks at multiple levels (git config, husky, package.json)
-4. **Git Configuration**: Sets up Copilot agent identity and authentication
-5. **Dependency Setup**: Installs project dependencies with hooks disabled
-6. **Final Validation**: Verifies environment is ready for Copilot operations
+1. **Runtime Environment Setup**: Checks and installs Flutter and Node.js if required
+2. **Environment Validation**: Checks git installation, GitHub environment, and working directory
+3. **Configuration Backup**: Creates complete backup of `.husky/`, `package.json`, and git configuration
+4. **Hook Disabling**: Disables git hooks at multiple levels (git config, husky, package.json)
+5. **Git Configuration**: Sets up Copilot agent identity and authentication
+6. **Dependency Setup**: Installs project dependencies with hooks disabled
+7. **Final Validation**: Verifies environment is ready for Copilot operations
 
 ### Cleanup Phase
 
@@ -90,6 +91,57 @@ The `auto` operation automatically sets up the environment and schedules cleanup
 6. **Auto-Push**: Pushes committed changes to repository (if `auto-push` is enabled)
 7. **Cleanup**: Removes temporary files and clears action state
 8. **Validation**: Verifies environment has been properly restored
+
+## Automatic Runtime Setup
+
+The action automatically detects your project type and sets up the required runtime environments:
+
+### Flutter Projects
+
+- Detects Flutter projects by checking for `pubspec.yaml`
+- Verifies Flutter installation and version
+- Automatically installs Flutter if missing or version mismatch
+- Supports version specification via `flutter-version` input
+
+### Node.js Projects
+
+- Detects Node.js projects by checking for `package.json`
+- Verifies Node.js installation and version
+- Automatically installs Node.js if missing or version mismatch
+- Supports version specification via `node-version` input
+
+### Mixed Projects
+
+- Handles projects that use both Flutter and Node.js
+- Sets up both runtime environments as needed
+- Ensures compatibility between versions
+
+### Runtime Detection Examples
+
+```yaml
+# Flutter project - auto-detects and sets up Flutter
+- name: Setup for Flutter Project
+  uses: SimplyLazyMan/copilot-environment-action@v1
+  with:
+    flutter-version: '3.35.1'
+```
+
+```yaml
+# Node.js project - auto-detects and sets up Node.js
+- name: Setup for Node.js Project
+  uses: SimplyLazyMan/copilot-environment-action@v1
+  with:
+    node-version: '20'
+```
+
+```yaml
+# Mixed project - sets up both runtimes
+- name: Setup for Mixed Project
+  uses: SimplyLazyMan/copilot-environment-action@v1
+  with:
+    flutter-version: '3.35.1'
+    node-version: '20'
+```
 
 ## Auto-Commit and Auto-Push Features
 
