@@ -1,4 +1,5 @@
 name: 'Copilot Environment Setup'
+version: 'v1.0.0'
 description: 'Setup and manage development environment for GitHub Copilot agents'
 author: 'SimplyLazyMan'
 branding:
@@ -17,7 +18,7 @@ inputs:
   node-version:
     description: 'Node.js version for dependencies'
     required: false
-    default: '24'
+    default: '20'
   disable-hooks:
     description: 'Whether to disable git hooks'
     required: false
@@ -48,7 +49,7 @@ outputs:
     description: 'Whether the environment is ready for Copilot'
 
 runs:
-  using: 'node24'
+  using: 'node20'
   main: 'dist/index.js'
   post: 'dist/index.js'
   post-if: 'always()'
