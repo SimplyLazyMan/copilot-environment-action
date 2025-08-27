@@ -1,6 +1,6 @@
 {
   "name": "copilot-environment-action",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "Setup and manage development environment for GitHub Copilot agents",
   "main": "dist/index.js",
   "scripts": {
