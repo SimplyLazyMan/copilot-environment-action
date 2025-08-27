@@ -63,11 +63,17 @@ jobs:
           # Create a simple Node.js project for testing
           mkdir test-project
           cd test-project
+
+          # Initialize git repository first
+          git init
+          git config user.name "Test User"
+          git config user.email "test@example.com"
+
           npm init -y
           npm install --save-dev husky @commitlint/cli @commitlint/config-conventional
 
-          # Setup husky
-          npx husky install
+          # Setup husky (modern approach)
+          npx husky init
           echo 'npx --no-install commitlint --edit "$1"' > .husky/commit-msg
           chmod +x .husky/commit-msg
 
@@ -124,9 +130,17 @@ jobs:
           # Create a simple Node.js project for testing
           mkdir test-project-auto
           cd test-project-auto
+
+          # Initialize git repository first
+          git init
+          git config user.name "Test User"
+          git config user.email "test@example.com"
+
           npm init -y
           npm install --save-dev husky
-          npx husky install
+
+          # Setup husky (modern approach)
+          npx husky init
           echo 'echo "pre-commit hook"' > .husky/pre-commit
           chmod +x .husky/pre-commit
 
