@@ -52,6 +52,10 @@ The `auto` operation automatically sets up the environment and schedules cleanup
 | `backup-configs` | Whether to backup original configurations | No | `true` |
 | `debug` | Enable debug logging | No | `false` |
 | `working-directory` | Working directory for the action | No | `.` |
+| `auto-commit` | Whether to automatically commit changes after cleanup | No | `false` |
+| `commit-message` | Commit message for auto-commit | No | `chore: revert copilot environment changes` |
+| `auto-push` | Whether to automatically push committed changes | No | `false` |
+| `target-branch` | Target branch for auto-commit and push | No | `main` |
 
 ## Outputs
 
@@ -62,6 +66,8 @@ The `auto` operation automatically sets up the environment and schedules cleanup
 | `original-configs` | JSON string of original configurations |
 | `hooks-disabled` | Whether hooks were successfully disabled |
 | `environment-ready` | Whether the environment is ready for Copilot |
+| `changes-committed` | Whether changes were successfully committed |
+| `changes-pushed` | Whether changes were successfully pushed |
 
 ## What It Does
 
@@ -80,10 +86,66 @@ The `auto` operation automatically sets up the environment and schedules cleanup
 2. **Git Restoration**: Restores original git configuration and user settings
 3. **Hook Restoration**: Re-enables all git hooks and validation tools
 4. **Configuration Restoration**: Restores all backed up files and configurations
-5. **Cleanup**: Removes temporary files and clears action state
-6. **Validation**: Verifies environment has been properly restored
+5. **Auto-Commit**: Commits any remaining changes (if `auto-commit` is enabled)
+6. **Auto-Push**: Pushes committed changes to repository (if `auto-push` is enabled)
+7. **Cleanup**: Removes temporary files and clears action state
+8. **Validation**: Verifies environment has been properly restored
 
-## Examples
+## Auto-Commit and Auto-Push Features
+
+### Overview
+
+The action can automatically commit and push changes made during the Copilot session to ensure that all changes are preserved and synchronized with the repository.
+
+### Use Cases
+
+- **CI/CD Integration**: Automatically commit changes made by Copilot during automated workflows
+- **Change Preservation**: Ensure Copilot modifications aren't lost when the environment is cleaned up
+- **Team Collaboration**: Push changes immediately for review by team members
+- **Audit Trail**: Maintain a clear commit history of Copilot-generated changes
+
+### Configuration Options
+
+#### Auto-Commit Only
+
+```yaml
+- name: Auto-commit changes
+  uses: SimplyLazyMan/copilot-environment-action@v1
+  with:
+    auto-commit: 'true'
+    commit-message: 'feat: automated improvements by GitHub Copilot'
+```
+
+#### Auto-Commit and Push
+
+```yaml
+- name: Auto-commit and push changes
+  uses: SimplyLazyMan/copilot-environment-action@v1
+  with:
+    auto-commit: 'true'
+    auto-push: 'true'
+    target-branch: 'copilot-changes'
+    commit-message: 'chore: automated environment cleanup'
+```
+
+### Auto-Commit Security Considerations
+
+- Ensure the `GITHUB_TOKEN` has appropriate write permissions
+- Consider using branch protection rules for auto-pushed branches
+- Review auto-committed changes before merging to main branches
+- Use descriptive commit messages for audit purposes
+
+### Outputs for Auto-Commit/Push
+
+```yaml
+- name: Check commit status
+  if: steps.copilot-setup.outputs.changes-committed == 'true'
+  run: echo "Changes were successfully committed"
+
+- name: Check push status
+  if: steps.copilot-setup.outputs.changes-pushed == 'true'
+  run: echo "Changes were successfully pushed"
+```
 
 ### Flutter Project
 
@@ -105,17 +167,31 @@ jobs:
           debug: 'true'
 ```
 
-### Node.js Project with Custom Configuration
+### Node.js Project with Auto-Commit and Push
 
 ```yaml
-- name: Setup Copilot Environment
+- name: Setup Copilot Environment with Auto-Commit
   uses: SimplyLazyMan/copilot-environment-action@v1
   with:
-    operation: 'setup'
+    operation: 'auto'
     node-version: '18'
-    disable-hooks: 'true'
-    backup-configs: 'true'
+    auto-commit: 'true'
+    commit-message: 'feat: automated changes by GitHub Copilot'
+    auto-push: 'true'
+    target-branch: 'main'
     working-directory: './frontend'
+```
+
+### Auto-Commit Only (No Push)
+
+```yaml
+- name: Setup Copilot Environment with Auto-Commit Only
+  uses: SimplyLazyMan/copilot-environment-action@v1
+  with:
+    operation: 'auto'
+    auto-commit: 'true'
+    commit-message: 'chore: copilot environment cleanup'
+    auto-push: 'false'
 ```
 
 ### Error Handling

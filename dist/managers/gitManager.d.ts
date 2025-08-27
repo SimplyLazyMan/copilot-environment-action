@@ -11,5 +11,9 @@ export declare class GitManager {
     backupGitConfig(): Promise<GitConfigBackup>;
     restoreGitConfig(backup: GitConfigBackup): Promise<void>;
     verifyAccess(): Promise<boolean>;
+    hasChanges(): Promise<boolean>;
+    commitChanges(message: string): Promise<boolean>;
+    pushChanges(branch?: string): Promise<boolean>;
+    commitAndPush(message: string, branch?: string): Promise<boolean>;
     private getGitConfig;
 }

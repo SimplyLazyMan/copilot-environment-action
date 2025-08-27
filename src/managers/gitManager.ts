@@ -266,6 +266,139 @@ export class GitManager {
     }
   }
 
+  async hasChanges(): Promise<boolean> {
+    try {
+      this.logger.debug('Checking for git changes');
+
+      let output = '';
+      await exec.exec('git', ['status', '--porcelain'], {
+        cwd: this.workingDirectory,
+        silent: true,
+        listeners: {
+          stdout: (data: Buffer) => {
+            output += data.toString();
+          },
+        },
+      });
+
+      const hasChanges = output.trim().length > 0;
+      this.logger.debug(`Git changes detected: ${hasChanges}`);
+
+      return hasChanges;
+    } catch (error) {
+      this.logger.warn(`Failed to check git changes: ${error}`);
+      return false;
+    }
+  }
+
+  async commitChanges(message: string): Promise<boolean> {
+    this.logger.startGroup('Committing changes');
+
+    try {
+      // First check if there are any changes to commit
+      const hasChanges = await this.hasChanges();
+      if (!hasChanges) {
+        this.logger.info('No changes to commit');
+        return true;
+      }
+
+      // Add all changes
+      await exec.exec('git', ['add', '.'], {
+        cwd: this.workingDirectory,
+      });
+
+      // Commit changes
+      await exec.exec('git', ['commit', '-m', message], {
+        cwd: this.workingDirectory,
+      });
+
+      this.logger.info(
+        `Successfully committed changes with message: "${message}"`
+      );
+      return true;
+    } catch (error) {
+      this.logger.error('Failed to commit changes', error);
+      return false;
+    } finally {
+      this.logger.endGroup();
+    }
+  }
+
+  async pushChanges(branch: string = 'main'): Promise<boolean> {
+    this.logger.startGroup('Pushing changes');
+
+    try {
+      // Check if we have access first
+      const hasAccess = await this.verifyAccess();
+      if (!hasAccess) {
+        this.logger.warn('Git push access verification failed');
+        return false;
+      }
+
+      // Get current branch
+      let currentBranch = '';
+      await exec.exec('git', ['branch', '--show-current'], {
+        cwd: this.workingDirectory,
+        silent: true,
+        listeners: {
+          stdout: (data: Buffer) => {
+            currentBranch = data.toString().trim();
+          },
+        },
+      });
+
+      // If current branch is different from target, warn but proceed
+      if (currentBranch && currentBranch !== branch) {
+        this.logger.warn(
+          `Current branch (${currentBranch}) differs from target branch (${branch})`
+        );
+      }
+
+      // Push changes
+      const pushBranch = currentBranch || branch;
+      await exec.exec('git', ['push', 'origin', pushBranch], {
+        cwd: this.workingDirectory,
+      });
+
+      this.logger.info(`Successfully pushed changes to ${pushBranch}`);
+      return true;
+    } catch (error) {
+      this.logger.error('Failed to push changes', error);
+      return false;
+    } finally {
+      this.logger.endGroup();
+    }
+  }
+
+  async commitAndPush(
+    message: string,
+    branch: string = 'main'
+  ): Promise<boolean> {
+    try {
+      this.logger.info('Starting commit and push operation');
+
+      // First commit the changes
+      const commitSuccess = await this.commitChanges(message);
+      if (!commitSuccess) {
+        this.logger.error('Commit failed, skipping push');
+        return false;
+      }
+
+      // Then push the changes
+      const pushSuccess = await this.pushChanges(branch);
+      if (!pushSuccess) {
+        this.logger.error('Push failed');
+        return false;
+      }
+
+      this.logger.info('Successfully committed and pushed changes');
+      return true;
+    } catch (error) {
+      this.logger.error('Commit and push operation failed', error);
+      return false;
+    }
+  }
+
   private async getGitConfig(key: string): Promise<string | undefined> {
     try {
       let output = '';

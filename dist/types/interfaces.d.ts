@@ -30,7 +30,7 @@ export interface GitConfigBackup {
 export interface ConfigModification {
     path: string;
     type: 'json' | 'text' | 'env';
-    changes: Record<string, any>;
+    changes: Record<string, unknown>;
 }
 export interface ValidationResult {
     isValid: boolean;
@@ -47,6 +47,8 @@ export interface SetupResult {
 export interface CleanupResult {
     success: boolean;
     restored: boolean;
+    committed: boolean;
+    pushed: boolean;
     errors: string[];
     warnings: string[];
 }
@@ -58,6 +60,10 @@ export interface ActionInputs {
     backupConfigs: boolean;
     debug: boolean;
     workingDirectory: string;
+    autoCommit: boolean;
+    commitMessage: string;
+    autoPush: boolean;
+    targetBranch: string;
 }
 export interface ActionOutputs {
     setupSuccessful: boolean;
@@ -65,4 +71,6 @@ export interface ActionOutputs {
     originalConfigs: string;
     hooksDisabled: boolean;
     environmentReady: boolean;
+    changesCommitted: boolean;
+    changesPushed: boolean;
 }

@@ -25695,6 +25695,8 @@ async function cleanupEnvironment(inputs, logger) {
     const result = {
         success: false,
         restored: false,
+        committed: false,
+        pushed: false,
         errors: [],
         warnings: [],
     };
@@ -25822,8 +25824,42 @@ async function cleanupEnvironment(inputs, logger) {
             logger.warn('Final validation failed', error);
             result.warnings.push('Final validation failed');
         }
-        // Step 8: Generate cleanup report
-        logger.info('Step 8: Generating cleanup report');
+        // Step 8: Auto-commit and push changes (if enabled)
+        if (inputs.autoCommit) {
+            logger.info('Step 8: Auto-committing changes');
+            try {
+                const commitSuccess = await gitManager.commitChanges(inputs.commitMessage);
+                result.committed = commitSuccess;
+                if (commitSuccess) {
+                    logger.info('Changes committed successfully');
+                    // Auto-push if enabled
+                    if (inputs.autoPush) {
+                        logger.info('Auto-pushing changes');
+                        const pushSuccess = await gitManager.pushChanges(inputs.targetBranch);
+                        result.pushed = pushSuccess;
+                        if (pushSuccess) {
+                            logger.info('Changes pushed successfully');
+                        }
+                        else {
+                            result.warnings.push('Failed to push committed changes');
+                        }
+                    }
+                }
+                else {
+                    result.warnings.push('Failed to commit changes');
+                }
+            }
+            catch (error) {
+                const errorMessage = `Auto-commit failed: ${error}`;
+                logger.warn(errorMessage);
+                result.warnings.push(errorMessage);
+            }
+        }
+        else {
+            logger.info('Step 8: Auto-commit disabled, skipping');
+        }
+        // Step 9: Generate cleanup report
+        logger.info('Step 9: Generating cleanup report');
         const report = generateCleanupReport(result, backupInfo);
         logger.info('Cleanup Report:', report);
         result.success = true;
@@ -25894,6 +25930,8 @@ function generateCleanupReport(result, backupInfo) {
     return {
         success: result.success,
         restored: result.restored,
+        committed: result.committed,
+        pushed: result.pushed,
         backupUsed: !!backupInfo,
         errorsCount: result.errors.length,
         warningsCount: result.warnings.length,
@@ -26019,6 +26057,8 @@ async function executeSetup(inputs, logger) {
         core.setOutput('backup-location', result.backupInfo?.location || '');
         core.setOutput('original-configs', result.backupInfo ? JSON.stringify(result.backupInfo) : '');
         core.setOutput('hooks-disabled', inputs.disableHooks.toString());
+        core.setOutput('changes-committed', 'false');
+        core.setOutput('changes-pushed', 'false');
         if (!result.success) {
             throw new Error(`Setup failed: ${result.errors.join(', ')}`);
         }
@@ -26043,6 +26083,8 @@ async function executeCleanup(inputs, logger) {
         core.setOutput('backup-location', '');
         core.setOutput('original-configs', '');
         core.setOutput('hooks-disabled', 'false');
+        core.setOutput('changes-committed', result.committed.toString());
+        core.setOutput('changes-pushed', result.pushed.toString());
         if (!result.success) {
             throw new Error(`Cleanup failed: ${result.errors.join(', ')}`);
         }
@@ -26068,6 +26110,8 @@ async function executeAuto(inputs, logger) {
         core.setOutput('backup-location', result.backupInfo?.location || '');
         core.setOutput('original-configs', result.backupInfo ? JSON.stringify(result.backupInfo) : '');
         core.setOutput('hooks-disabled', inputs.disableHooks.toString());
+        core.setOutput('changes-committed', 'false');
+        core.setOutput('changes-pushed', 'false');
         if (!result.success) {
             throw new Error(`Auto setup failed: ${result.errors.join(', ')}`);
         }
@@ -26093,6 +26137,11 @@ function parseInputs() {
         backupConfigs: core.getBooleanInput('backup-configs'),
         debug: core.getBooleanInput('debug'),
         workingDirectory: core.getInput('working-directory') || '.',
+        autoCommit: core.getBooleanInput('auto-commit'),
+        commitMessage: core.getInput('commit-message') ||
+            'chore: revert copilot environment changes',
+        autoPush: core.getBooleanInput('auto-push'),
+        targetBranch: core.getInput('target-branch') || 'main',
     };
 }
 // Main execution logic
@@ -26690,6 +26739,119 @@ class GitManager {
         }
         catch (error) {
             this.logger.warn(`Git access verification failed: ${error}`);
+            return false;
+        }
+    }
+    async hasChanges() {
+        try {
+            this.logger.debug('Checking for git changes');
+            let output = '';
+            await exec.exec('git', ['status', '--porcelain'], {
+                cwd: this.workingDirectory,
+                silent: true,
+                listeners: {
+                    stdout: (data) => {
+                        output += data.toString();
+                    },
+                },
+            });
+            const hasChanges = output.trim().length > 0;
+            this.logger.debug(`Git changes detected: ${hasChanges}`);
+            return hasChanges;
+        }
+        catch (error) {
+            this.logger.warn(`Failed to check git changes: ${error}`);
+            return false;
+        }
+    }
+    async commitChanges(message) {
+        this.logger.startGroup('Committing changes');
+        try {
+            // First check if there are any changes to commit
+            const hasChanges = await this.hasChanges();
+            if (!hasChanges) {
+                this.logger.info('No changes to commit');
+                return true;
+            }
+            // Add all changes
+            await exec.exec('git', ['add', '.'], {
+                cwd: this.workingDirectory,
+            });
+            // Commit changes
+            await exec.exec('git', ['commit', '-m', message], {
+                cwd: this.workingDirectory,
+            });
+            this.logger.info(`Successfully committed changes with message: "${message}"`);
+            return true;
+        }
+        catch (error) {
+            this.logger.error('Failed to commit changes', error);
+            return false;
+        }
+        finally {
+            this.logger.endGroup();
+        }
+    }
+    async pushChanges(branch = 'main') {
+        this.logger.startGroup('Pushing changes');
+        try {
+            // Check if we have access first
+            const hasAccess = await this.verifyAccess();
+            if (!hasAccess) {
+                this.logger.warn('Git push access verification failed');
+                return false;
+            }
+            // Get current branch
+            let currentBranch = '';
+            await exec.exec('git', ['branch', '--show-current'], {
+                cwd: this.workingDirectory,
+                silent: true,
+                listeners: {
+                    stdout: (data) => {
+                        currentBranch = data.toString().trim();
+                    },
+                },
+            });
+            // If current branch is different from target, warn but proceed
+            if (currentBranch && currentBranch !== branch) {
+                this.logger.warn(`Current branch (${currentBranch}) differs from target branch (${branch})`);
+            }
+            // Push changes
+            const pushBranch = currentBranch || branch;
+            await exec.exec('git', ['push', 'origin', pushBranch], {
+                cwd: this.workingDirectory,
+            });
+            this.logger.info(`Successfully pushed changes to ${pushBranch}`);
+            return true;
+        }
+        catch (error) {
+            this.logger.error('Failed to push changes', error);
+            return false;
+        }
+        finally {
+            this.logger.endGroup();
+        }
+    }
+    async commitAndPush(message, branch = 'main') {
+        try {
+            this.logger.info('Starting commit and push operation');
+            // First commit the changes
+            const commitSuccess = await this.commitChanges(message);
+            if (!commitSuccess) {
+                this.logger.error('Commit failed, skipping push');
+                return false;
+            }
+            // Then push the changes
+            const pushSuccess = await this.pushChanges(branch);
+            if (!pushSuccess) {
+                this.logger.error('Push failed');
+                return false;
+            }
+            this.logger.info('Successfully committed and pushed changes');
+            return true;
+        }
+        catch (error) {
+            this.logger.error('Commit and push operation failed', error);
             return false;
         }
     }

@@ -35,6 +35,22 @@ inputs:
     description: 'Working directory for the action'
     required: false
     default: '.'
+  auto-commit:
+    description: 'Whether to automatically commit changes after cleanup'
+    required: false
+    default: 'false'
+  commit-message:
+    description: 'Commit message for auto-commit'
+    required: false
+    default: 'chore: revert copilot environment changes'
+  auto-push:
+    description: 'Whether to automatically push committed changes'
+    required: false
+    default: 'false'
+  target-branch:
+    description: 'Target branch for auto-commit and push'
+    required: false
+    default: 'main'
 
 outputs:
   setup-successful:
@@ -47,6 +63,10 @@ outputs:
     description: 'Whether hooks were successfully disabled'
   environment-ready:
     description: 'Whether the environment is ready for Copilot'
+  changes-committed:
+    description: 'Whether changes were successfully committed'
+  changes-pushed:
+    description: 'Whether changes were successfully pushed'
 
 runs:
   using: 'node20'

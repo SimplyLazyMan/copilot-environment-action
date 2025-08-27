@@ -1,5 +1,5 @@
 import * as core from '@actions/core';
-import { CleanupResult, ActionInputs } from './types/interfaces';
+import { CleanupResult, ActionInputs, BackupInfo } from './types/interfaces';
 import { Logger } from './utils/logger';
 import { BackupManager } from './utils/backup';
 import { ValidationManager } from './utils/validation';
@@ -15,6 +15,8 @@ export async function cleanupEnvironment(
   const result: CleanupResult = {
     success: false,
     restored: false,
+    committed: false,
+    pushed: false,
     errors: [],
     warnings: [],
   };
@@ -157,8 +159,46 @@ export async function cleanupEnvironment(
       result.warnings.push('Final validation failed');
     }
 
-    // Step 8: Generate cleanup report
-    logger.info('Step 8: Generating cleanup report');
+    // Step 8: Auto-commit and push changes (if enabled)
+    if (inputs.autoCommit) {
+      logger.info('Step 8: Auto-committing changes');
+      try {
+        const commitSuccess = await gitManager.commitChanges(
+          inputs.commitMessage
+        );
+        result.committed = commitSuccess;
+
+        if (commitSuccess) {
+          logger.info('Changes committed successfully');
+
+          // Auto-push if enabled
+          if (inputs.autoPush) {
+            logger.info('Auto-pushing changes');
+            const pushSuccess = await gitManager.pushChanges(
+              inputs.targetBranch
+            );
+            result.pushed = pushSuccess;
+
+            if (pushSuccess) {
+              logger.info('Changes pushed successfully');
+            } else {
+              result.warnings.push('Failed to push committed changes');
+            }
+          }
+        } else {
+          result.warnings.push('Failed to commit changes');
+        }
+      } catch (error) {
+        const errorMessage = `Auto-commit failed: ${error}`;
+        logger.warn(errorMessage);
+        result.warnings.push(errorMessage);
+      }
+    } else {
+      logger.info('Step 8: Auto-commit disabled, skipping');
+    }
+
+    // Step 9: Generate cleanup report
+    logger.info('Step 9: Generating cleanup report');
     const report = generateCleanupReport(result, backupInfo);
     logger.info('Cleanup Report:', report);
 
@@ -235,11 +275,13 @@ export async function performEmergencyCleanup(
 
 function generateCleanupReport(
   result: CleanupResult,
-  backupInfo?: any
-): Record<string, any> {
+  backupInfo?: BackupInfo
+): Record<string, unknown> {
   return {
     success: result.success,
     restored: result.restored,
+    committed: result.committed,
+    pushed: result.pushed,
     backupUsed: !!backupInfo,
     errorsCount: result.errors.length,
     warningsCount: result.warnings.length,

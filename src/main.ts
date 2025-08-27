@@ -98,6 +98,8 @@ async function executeSetup(
       result.backupInfo ? JSON.stringify(result.backupInfo) : ''
     );
     core.setOutput('hooks-disabled', inputs.disableHooks.toString());
+    core.setOutput('changes-committed', 'false');
+    core.setOutput('changes-pushed', 'false');
 
     if (!result.success) {
       throw new Error(`Setup failed: ${result.errors.join(', ')}`);
@@ -129,6 +131,8 @@ async function executeCleanup(
     core.setOutput('backup-location', '');
     core.setOutput('original-configs', '');
     core.setOutput('hooks-disabled', 'false');
+    core.setOutput('changes-committed', result.committed.toString());
+    core.setOutput('changes-pushed', result.pushed.toString());
 
     if (!result.success) {
       throw new Error(`Cleanup failed: ${result.errors.join(', ')}`);
@@ -164,6 +168,8 @@ async function executeAuto(
       result.backupInfo ? JSON.stringify(result.backupInfo) : ''
     );
     core.setOutput('hooks-disabled', inputs.disableHooks.toString());
+    core.setOutput('changes-committed', 'false');
+    core.setOutput('changes-pushed', 'false');
 
     if (!result.success) {
       throw new Error(`Auto setup failed: ${result.errors.join(', ')}`);
@@ -192,6 +198,12 @@ function parseInputs(): ActionInputs {
     backupConfigs: core.getBooleanInput('backup-configs'),
     debug: core.getBooleanInput('debug'),
     workingDirectory: core.getInput('working-directory') || '.',
+    autoCommit: core.getBooleanInput('auto-commit'),
+    commitMessage:
+      core.getInput('commit-message') ||
+      'chore: revert copilot environment changes',
+    autoPush: core.getBooleanInput('auto-push'),
+    targetBranch: core.getInput('target-branch') || 'main',
   };
 }
 
