@@ -1,0 +1,214 @@
+name: 'Bump Version'
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        default: 'patch'
+        options:
+          - 'patch'
+          - 'minor'
+          - 'major'
+      create_release:
+        description: 'Create release after bumping version'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  bump-version:
+    name: 'Bump Version'
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.bump.outputs.new_version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Get current version
+        id: current
+        run: |
+          # Get the latest tag
+          CURRENT_VERSION=$(git tag -l --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1)
+
+          if [ -z "$CURRENT_VERSION" ]; then
+            CURRENT_VERSION="v0.0.0"
+            echo "🏷️ No previous version found, starting from $CURRENT_VERSION"
+          else
+            echo "🏷️ Current version: $CURRENT_VERSION"
+          fi
+
+          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Calculate new version
+        id: bump
+        run: |
+          CURRENT="${{ steps.current.outputs.current_version }}"
+          BUMP_TYPE="${{ github.event.inputs.bump_type }}"
+
+          # Remove 'v' prefix
+          CURRENT=$(echo "$CURRENT" | sed 's/^v//')
+
+          # Split version into parts
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+
+          # Bump version based on type
+          case "$BUMP_TYPE" in
+            "major")
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+              ;;
+            "minor")
+              MINOR=$((MINOR + 1))
+              PATCH=0
+              ;;
+            "patch")
+              PATCH=$((PATCH + 1))
+              ;;
+          esac
+
+          NEW_VERSION="v$MAJOR.$MINOR.$PATCH"
+
+          echo "🎯 Bumping version: ${{ steps.current.outputs.current_version }} → $NEW_VERSION ($BUMP_TYPE)"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Update package.json
+        run: |
+          NEW_VERSION="${{ steps.bump.outputs.new_version }}"
+          VERSION_NO_V=$(echo "$NEW_VERSION" | sed 's/^v//')
+
+          if [ -f "package.json" ]; then
+            # Update package.json version
+            npm version --no-git-tag-version "$VERSION_NO_V"
+            echo "✅ Updated package.json to $VERSION_NO_V"
+          fi
+
+      - name: Update action.yml
+        run: |
+          NEW_VERSION="${{ steps.bump.outputs.new_version }}"
+
+          if [ -f "action.yml" ]; then
+            # Add or update version field in action.yml
+            if grep -q "^version:" action.yml; then
+              sed -i "s/^version:.*/version: '$NEW_VERSION'/" action.yml
+            else
+              # Add version after name
+              sed -i "/^name:/a version: '$NEW_VERSION'" action.yml
+            fi
+            echo "✅ Updated action.yml to $NEW_VERSION"
+          fi
+
+      - name: Rebuild distribution
+        run: |
+          if [ -f "package.json" ] && [ -f "pnpm-lock.yaml" ]; then
+            # Setup pnpm
+            curl -fsSL https://get.pnpm.io/install.sh | sh -
+            export PATH="$HOME/.local/share/pnpm:$PATH"
+            
+            # Install and build
+            pnpm install --frozen-lockfile
+            pnpm run build
+            
+            echo "✅ Rebuilt distribution files"
+          fi
+
+      - name: Commit changes
+        run: |
+          NEW_VERSION="${{ steps.bump.outputs.new_version }}"
+
+          # Add all changes
+          git add .
+
+          # Check if there are changes to commit
+          if git diff --cached --quiet; then
+            echo "ℹ️ No changes to commit"
+          else
+            git commit -m "chore: bump version to $NEW_VERSION - Update package.json, action.yml and rebuild dist files"
+            
+            git push
+            echo "✅ Committed and pushed version bump"
+          fi
+
+  create-release:
+    name: 'Create Release'
+    runs-on: ubuntu-latest
+    needs: bump-version
+    if: github.event.inputs.create_release == 'true'
+
+    steps:
+      - name: Trigger release workflow
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const version = '${{ needs.bump-version.outputs.new_version }}';
+
+            console.log(`🚀 Triggering release workflow for version ${version}`);
+
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'release.yml',
+              ref: 'main',
+              inputs: {
+                version: version,
+                release_type: '${{ github.event.inputs.bump_type }}',
+                prerelease: 'false',
+                generate_notes: 'true'
+              }
+            });
+
+            console.log(`✅ Release workflow triggered for ${version}`);
+
+  notify:
+    name: 'Notify Completion'
+    runs-on: ubuntu-latest
+    needs: [bump-version, create-release]
+    if: always()
+
+    steps:
+      - name: Success notification
+        if: needs.bump-version.result == 'success'
+        run: |
+          NEW_VERSION="${{ needs.bump-version.outputs.new_version }}"
+          BUMP_TYPE="${{ github.event.inputs.bump_type }}"
+          CREATE_RELEASE="${{ github.event.inputs.create_release }}"
+
+          echo "🎉 Version bump completed successfully!"
+          echo "📦 New version: $NEW_VERSION ($BUMP_TYPE bump)"
+
+          if [ "$CREATE_RELEASE" = "true" ]; then
+            echo "🚀 Release workflow has been triggered"
+            echo "📋 Check the 'Create Release' workflow for release progress"
+          else
+            echo "ℹ️ No release created (create_release was false)"
+          fi
+
+          echo ""
+          echo "🔗 Next steps:"
+          echo "- Review the changes in the commit"
+          echo "- Monitor the release workflow if triggered"
+          echo "- Update documentation if needed"
+
+      - name: Failure notification
+        if: needs.bump-version.result == 'failure'
+        run: |
+          echo "❌ Version bump failed!"
+          echo "Please check the workflow logs and try again."
+          exit 1

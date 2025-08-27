@@ -1,0 +1,281 @@
+name: 'Create Release'
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        type: string
+      release_type:
+        description: 'Type of release'
+        required: true
+        type: choice
+        default: 'minor'
+        options:
+          - 'patch'
+          - 'minor'
+          - 'major'
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        type: boolean
+        default: false
+      generate_notes:
+        description: 'Auto-generate release notes'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  actions: read
+  pull-requests: read
+
+jobs:
+  validate:
+    name: 'Validate Release'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.validate.outputs.version }}
+      major_version: ${{ steps.validate.outputs.major_version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate version format
+        id: validate
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+
+          # Remove 'v' prefix if present and add it back consistently
+          VERSION=$(echo "$VERSION" | sed 's/^v//')
+          VERSION="v$VERSION"
+
+          # Validate semantic version format
+          if [[ ! $VERSION =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9\-]+)?(\+[a-zA-Z0-9\-]+)?$ ]]; then
+            echo "❌ Invalid version format: $VERSION"
+            echo "Expected format: v1.0.0 or v1.0.0-alpha.1"
+            exit 1
+          fi
+
+          # Extract major version (e.g., v1.2.3 -> v1)
+          MAJOR_VERSION=$(echo "$VERSION" | cut -d. -f1)
+
+          echo "✅ Version format is valid: $VERSION"
+          echo "📌 Major version: $MAJOR_VERSION"
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "major_version=$MAJOR_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Check if tag exists
+        run: |
+          VERSION="${{ steps.validate.outputs.version }}"
+          if git tag -l | grep -q "^$VERSION$"; then
+            echo "❌ Tag $VERSION already exists!"
+            exit 1
+          fi
+          echo "✅ Tag $VERSION is available"
+
+      - name: Verify dist files are up to date
+        run: |
+          echo "🔍 Checking if dist/ files are current..."
+
+          # Setup Node.js and pnpm
+          curl -fsSL https://get.pnpm.io/install.sh | sh -
+          export PATH="$HOME/.local/share/pnpm:$PATH"
+          pnpm install --frozen-lockfile
+
+          # Build and check for changes
+          pnpm run build
+
+          if ! git diff --quiet dist/; then
+            echo "❌ dist/ files are not up to date!"
+            echo "Please run 'pnpm run build' and commit the changes."
+            git diff --name-only dist/
+            exit 1
+          fi
+
+          echo "✅ dist/ files are current"
+
+  test:
+    name: 'Run Tests'
+    runs-on: ubuntu-latest
+    needs: validate
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'latest'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run linter
+        run: pnpm run lint
+
+      - name: Build action
+        run: pnpm run build
+
+      - name: Verify dist folder
+        run: |
+          if [ ! -f "dist/index.js" ]; then
+            echo "❌ dist/index.js not found"
+            exit 1
+          fi
+          echo "✅ Build artifacts verified"
+
+  create-release:
+    name: 'Create Release'
+    runs-on: ubuntu-latest
+    needs: [validate, test]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create and push tag
+        run: |
+          VERSION="${{ needs.validate.outputs.version }}"
+          MAJOR_VERSION="${{ needs.validate.outputs.major_version }}"
+
+          echo "🏷️ Creating tag: $VERSION"
+          git tag -a "$VERSION" -m "Release $VERSION"
+          git push origin "$VERSION"
+
+          echo "🏷️ Updating major version tag: $MAJOR_VERSION"
+          git tag -d "$MAJOR_VERSION" 2>/dev/null || true
+          git push origin ":refs/tags/$MAJOR_VERSION" 2>/dev/null || true
+          git tag -a "$MAJOR_VERSION" -m "Release $MAJOR_VERSION (points to $VERSION)"
+          git push origin "$MAJOR_VERSION"
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          VERSION="${{ needs.validate.outputs.version }}"
+
+          # Get the previous tag
+          PREVIOUS_TAG=$(git tag -l --sort=-version:refname | grep -v "^$VERSION$" | head -n1)
+
+          if [ -z "$PREVIOUS_TAG" ]; then
+            echo "📝 First release - generating initial changelog"
+            cat > /tmp/changelog.md << 'EOF'
+          ## 🎉 Initial Release
+
+          This is the first release of the Copilot Environment Action.
+
+          ### ✨ Features
+          - Automatic setup and cleanup of development environments for GitHub Copilot
+          - Support for Node.js and Flutter projects
+          - Git hooks management (disable/restore)
+          - Backup and restore of original configurations
+          - Debug logging support
+
+          ### 🚀 Usage
+          ```yaml
+          - name: Setup Copilot Environment
+            uses: ${{ github.repository }}@$VERSION
+            with:
+              operation: 'auto'
+          ```
+          EOF
+          else
+            echo "📝 Generating changelog from $PREVIOUS_TAG to $VERSION"
+            
+            # Generate commit log
+            COMMITS=$(git log --pretty=format:"- %s (%h)" "$PREVIOUS_TAG..$VERSION")
+            
+            cat > /tmp/changelog.md << EOF
+          ## 🔄 Changes since $PREVIOUS_TAG
+
+          ### 📋 Commits
+          $COMMITS
+
+          ### 🚀 Usage
+          \`\`\`yaml
+          - name: Setup Copilot Environment
+            uses: ${{ github.repository }}@$VERSION
+            with:
+              operation: 'auto'
+          \`\`\`
+          EOF
+          fi
+
+          # Save to file and output
+          echo "changelog-file=/tmp/changelog.md" >> $GITHUB_OUTPUT
+
+          echo "📝 Generated changelog:"
+          cat /tmp/changelog.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.validate.outputs.version }}
+          name: 'Release ${{ needs.validate.outputs.version }}'
+          body_path: ${{ steps.changelog.outputs.changelog-file }}
+          draft: false
+          prerelease: ${{ github.event.inputs.prerelease }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update README badges
+        run: |
+          VERSION="${{ needs.validate.outputs.version }}"
+
+          # Update version badge in README if it exists
+          if [ -f "README.md" ]; then
+            # Update version badge
+            sed -i "s|version-v[0-9]\+\.[0-9]\+\.[0-9]\+|version-$VERSION|g" README.md
+            
+            # Commit if there are changes
+            if ! git diff --quiet README.md; then
+              git add README.md
+              git commit -m "docs: update version badge to $VERSION"
+              git push
+            fi
+          fi
+
+  notify:
+    name: 'Notify Release'
+    runs-on: ubuntu-latest
+    needs: [validate, create-release]
+    if: always()
+
+    steps:
+      - name: Success notification
+        if: needs.create-release.result == 'success'
+        run: |
+          VERSION="${{ needs.validate.outputs.version }}"
+          echo "🎉 Successfully created release $VERSION!"
+          echo "📦 Release is available at: https://github.com/${{ github.repository }}/releases/tag/$VERSION"
+          echo ""
+          echo "🚀 Organization repositories can now use:"
+          echo "    uses: ${{ github.repository }}@$VERSION"
+          echo "    uses: ${{ github.repository }}@${{ needs.validate.outputs.major_version }}"
+
+      - name: Failure notification
+        if: needs.create-release.result == 'failure'
+        run: |
+          echo "❌ Release creation failed!"
+          echo "Please check the workflow logs and try again."
+          exit 1
