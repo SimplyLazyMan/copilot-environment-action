@@ -47,7 +47,7 @@ The `auto` operation automatically sets up the environment and schedules cleanup
 |-------|-------------|----------|---------|
 | `operation` | Operation to perform: `setup`, `cleanup`, or `auto` | No | `auto` |
 | `flutter-version` | Flutter version to setup | No | `3.35.1` |
-| `node-version` | Node.js version for dependencies | No | `20` |
+| `node-version` | Node.js version for dependencies | No | `latest` |
 | `disable-hooks` | Whether to disable git hooks | No | `true` |
 | `backup-configs` | Whether to backup original configurations | No | `true` |
 | `debug` | Enable debug logging | No | `false` |
