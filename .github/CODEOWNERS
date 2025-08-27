@@ -52,13 +52,13 @@ lib/ @Joy-sameza
 # =============================================================================
 
 # Workflow files - CI/CD and automation
-.github/workflows/ @Joy-sameza
+.github/workflows/ @funSamy
 
 # GitHub configuration
-.github/ @Joy-sameza
+.github/ @funSamy
 
 # This CODEOWNERS file itself
-.github/CODEOWNERS @Joy-sameza
+.github/CODEOWNERS @funSamy
 
 # =============================================================================
 # Documentation
