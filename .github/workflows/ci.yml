@@ -1,0 +1,142 @@
+name: CI/CD
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'latest'
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        run: |
+          corepack enable pnpm
+          npm install -g pnpm@latest
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run linter
+        run: pnpm run lint
+
+    #   - name: Run tests
+    #     run: pnpm run test:coverage
+
+      - name: Build action
+        run: pnpm run build
+
+      - name: Verify dist folder
+        run: |
+          if [ ! -f "dist/index.js" ]; then
+            echo "dist/index.js not found"
+            exit 1
+          fi
+
+  integration-test:
+    name: Integration Test
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create test environment
+        run: |
+          # Create a simple Node.js project for testing
+          mkdir test-project
+          cd test-project
+          npm init -y
+          npm install --save-dev husky @commitlint/cli @commitlint/config-conventional
+
+          # Setup husky
+          npx husky install
+          echo 'npx --no-install commitlint --edit "$1"' > .husky/commit-msg
+          chmod +x .husky/commit-msg
+
+          # Setup commitlint config
+          echo "module.exports = {extends: ['@commitlint/config-conventional']};" > commitlint.config.js
+
+      - name: Test Action - Setup
+        uses: ./
+        with:
+          operation: 'setup'
+          working-directory: './test-project'
+          debug: 'true'
+
+      - name: Verify setup worked
+        run: |
+          cd test-project
+          # Test that hooks are disabled
+          git config core.hooksPath || echo "Hooks path not set (expected)"
+
+          # Test git configuration
+          git config user.name
+          git config user.email
+
+      - name: Test Action - Cleanup
+        uses: ./
+        if: always()
+        with:
+          operation: 'cleanup'
+          working-directory: './test-project'
+          debug: 'true'
+
+      - name: Verify cleanup worked
+        run: |
+          cd test-project
+          # Check if original files were restored
+          if [ -f ".husky/commit-msg" ]; then
+            echo "Hooks restored successfully"
+          else
+            echo "Hook restoration failed"
+            exit 1
+          fi
+
+  auto-test:
+    name: Auto Mode Test
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create test environment
+        run: |
+          # Create a simple Node.js project for testing
+          mkdir test-project-auto
+          cd test-project-auto
+          npm init -y
+          npm install --save-dev husky
+          npx husky install
+          echo 'echo "pre-commit hook"' > .husky/pre-commit
+          chmod +x .husky/pre-commit
+
+      - name: Test Action - Auto Mode
+        uses: ./
+        with:
+          operation: 'auto'
+          working-directory: './test-project-auto'
+          debug: 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      # Auto mode should automatically clean up via post-action

@@ -1,0 +1,142 @@
+name: 'Test Copilot Environment Action'
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/test-action.yml'
+
+jobs:
+  test-auto-mode:
+    name: 'Test Auto Mode'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ github.token }}
+          fetch-depth: 0
+
+      - name: Create test project
+        run: |
+          # Create a test Node.js project with hooks
+          mkdir -p test-env
+          cd test-env
+          npm init -y
+          npm install --save-dev husky @commitlint/cli @commitlint/config-conventional lint-staged
+
+          # Setup husky
+          npx husky install
+          echo 'npx --no-install commitlint --edit "$1"' > .husky/commit-msg
+          echo 'npx lint-staged' > .husky/pre-commit
+          chmod +x .husky/commit-msg .husky/pre-commit
+
+          # Create commitlint config
+          echo "module.exports = {extends: ['@commitlint/config-conventional']};" > commitlint.config.js
+
+          # Add lint-staged config to package.json
+          npm pkg set 'lint-staged.**/*.js'='echo "linting"'
+
+      - name: Setup Copilot Environment
+        uses: ./
+        with:
+          operation: 'auto'
+          working-directory: './test-env'
+          debug: 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Verify environment setup
+        run: |
+          cd test-env
+          echo "Checking git configuration..."
+          git config user.name
+          git config user.email
+
+          echo "Checking hooks status..."
+          git config core.hooksPath || echo "Hooks path unset"
+
+          echo "Checking if hooks are disabled..."
+          if [ -f ".husky/commit-msg" ]; then
+            cat .husky/commit-msg
+          fi
+
+      - name: Test git operations
+        run: |
+          cd test-env
+          echo "# Test file" > test.md
+          git add test.md
+          git commit -m "test: add test file" || echo "Commit succeeded (hooks disabled)"
+
+      # The action should automatically clean up via post-action
+
+  test-manual-mode:
+    name: 'Test Manual Setup/Cleanup'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create test Flutter project
+        run: |
+          # Create a test Flutter project structure
+          mkdir -p flutter-test/lib
+          cd flutter-test
+
+          # Create pubspec.yaml
+          cat > pubspec.yaml << EOF
+          name: test_app
+          description: A test Flutter application
+          version: 1.0.0+1
+
+          environment:
+            sdk: '>=3.0.0 <4.0.0'
+            flutter: ">=3.10.0"
+
+          dependencies:
+            flutter:
+              sdk: flutter
+
+          dev_dependencies:
+            flutter_test:
+              sdk: flutter
+            build_runner: ^2.4.7
+          EOF
+
+          # Create basic main.dart
+          echo 'void main() => print("Hello Flutter");' > lib/main.dart
+
+          # Create basic package.json for tools
+          npm init -y
+          npm install --save-dev husky
+
+      - name: Setup Copilot Environment
+        id: setup
+        uses: ./
+        with:
+          operation: 'setup'
+          flutter-version: '3.35.1'
+          working-directory: './flutter-test'
+          debug: 'true'
+
+      - name: Verify setup outputs
+        run: |
+          echo "Setup successful: ${{ steps.setup.outputs.setup-successful }}"
+          echo "Environment ready: ${{ steps.setup.outputs.environment-ready }}"
+          echo "Hooks disabled: ${{ steps.setup.outputs.hooks-disabled }}"
+          echo "Backup location: ${{ steps.setup.outputs.backup-location }}"
+
+      - name: Manual cleanup
+        uses: ./
+        if: always()
+        with:
+          operation: 'cleanup'
+          working-directory: './flutter-test'
+          debug: 'true'

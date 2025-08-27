@@ -1,0 +1,54 @@
+name: 'Copilot Environment Setup'
+description: 'Setup and manage development environment for GitHub Copilot agents'
+author: 'SimplyLazyMan'
+branding:
+  icon: 'settings'
+  color: 'blue'
+
+inputs:
+  operation:
+    description: 'Operation to perform: setup, cleanup, or auto'
+    required: false
+    default: 'auto'
+  flutter-version:
+    description: 'Flutter version to setup'
+    required: false
+    default: '3.35.1'
+  node-version:
+    description: 'Node.js version for dependencies'
+    required: false
+    default: '20'
+  disable-hooks:
+    description: 'Whether to disable git hooks'
+    required: false
+    default: 'true'
+  backup-configs:
+    description: 'Whether to backup original configurations'
+    required: false
+    default: 'true'
+  debug:
+    description: 'Enable debug logging'
+    required: false
+    default: 'false'
+  working-directory:
+    description: 'Working directory for the action'
+    required: false
+    default: '.'
+
+outputs:
+  setup-successful:
+    description: 'Whether the setup was successful'
+  backup-location:
+    description: 'Location of configuration backups'
+  original-configs:
+    description: 'JSON string of original configurations'
+  hooks-disabled:
+    description: 'Whether hooks were successfully disabled'
+  environment-ready:
+    description: 'Whether the environment is ready for Copilot'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
+  post: 'dist/index.js'
+  post-if: 'always()'
