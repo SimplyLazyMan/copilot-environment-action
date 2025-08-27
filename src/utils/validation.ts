@@ -281,7 +281,7 @@ export class ValidationManager {
     let hasFlutterProject = false;
 
     // Check for Flutter indicators
-    for (const { file, type } of indicators) {
+    for (const { file } of indicators) {
       try {
         await fs.access(path.join(this.workingDirectory, file));
         hasFlutterProject = true;

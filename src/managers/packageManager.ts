@@ -66,7 +66,7 @@ export class PackageManager {
     }
   }
 
-  async setupFlutter(version?: string): Promise<void> {
+  async setupFlutter(): Promise<void> {
     this.logger.startGroup('Setting up Flutter');
 
     try {
@@ -116,12 +116,7 @@ export class PackageManager {
 
         await exec.exec(
           'dart',
-          [
-            'run',
-            'build_runner',
-            'build',
-            '--delete-conflicting-outputs',
-          ],
+          ['run', 'build_runner', 'build', '--delete-conflicting-outputs'],
           {
             cwd: this.workingDirectory,
           }

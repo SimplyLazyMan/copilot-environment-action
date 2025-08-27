@@ -1,5 +1,6 @@
 import * as core from '@actions/core';
 import { SetupResult, ActionInputs } from './types/interfaces';
+import { PackageManager as PackageManagerType } from './types/enums';
 import { Logger } from './utils/logger';
 import { BackupManager } from './utils/backup';
 import { ValidationManager } from './utils/validation';
@@ -113,7 +114,7 @@ export async function setupEnvironment(
       environmentInfo.projectType === 'node' ||
       environmentInfo.projectType === 'mixed'
     ) {
-      const pmType = environmentInfo.packageManager as any; // Convert string to enum
+      const pmType = environmentInfo.packageManager as PackageManagerType;
       await packageManager.installDependencies(pmType, {
         skipScripts: true,
       });
@@ -124,7 +125,7 @@ export async function setupEnvironment(
       environmentInfo.projectType === 'flutter' ||
       environmentInfo.projectType === 'mixed'
     ) {
-      await packageManager.setupFlutter(inputs.flutterVersion);
+      await packageManager.setupFlutter();
     }
 
     // Step 9: Final validation

@@ -159,7 +159,7 @@ export class ConfigManager {
 
       this.logger.debug('Package.json backed up');
       return backup;
-    } catch (error) {
+    } catch {
       this.logger.debug('No package.json found or failed to backup');
       return null;
     }
@@ -255,7 +255,7 @@ export class ConfigManager {
         'utf-8'
       );
       this.logger.debug('Package.json scripts disabled');
-    } catch (error) {
+    } catch {
       this.logger.debug('No package.json found or failed to modify');
     }
   }

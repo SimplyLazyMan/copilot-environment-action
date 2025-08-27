@@ -1,7 +1,7 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as crypto from 'crypto';
-import { BackupInfo, BackupFile, GitConfigBackup } from '../types/interfaces';
+import { BackupInfo, BackupFile } from '../types/interfaces';
 import { BackupFileType } from '../types/enums';
 import { Logger } from './logger';
 import { CONSTANTS } from './constants';
@@ -53,7 +53,7 @@ export class BackupManager {
     try {
       // Restore files
       for (const file of backupInfo.files) {
-        await this.restoreFile(file, backupInfo.location);
+        await this.restoreFile(file);
       }
 
       // Clean up backup directory
@@ -147,10 +147,7 @@ export class BackupManager {
     this.logger.debug(`Backed up: ${sourcePath} -> ${backupPath}`);
   }
 
-  private async restoreFile(
-    file: BackupFile,
-    backupLocation: string
-  ): Promise<void> {
+  private async restoreFile(file: BackupFile): Promise<void> {
     const { path: backupPath, originalPath, type } = file;
 
     try {
