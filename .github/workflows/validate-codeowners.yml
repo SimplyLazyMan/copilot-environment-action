@@ -1,0 +1,177 @@
+name: 'Validate CODEOWNERS'
+
+on:
+  push:
+    paths:
+      - '.github/CODEOWNERS'
+  pull_request:
+    paths:
+      - '.github/CODEOWNERS'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-codeowners:
+    name: 'Validate CODEOWNERS File'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Validate CODEOWNERS syntax
+        run: |
+          echo "🔍 Validating CODEOWNERS file syntax..."
+
+          if [ ! -f ".github/CODEOWNERS" ]; then
+            echo "❌ CODEOWNERS file not found at .github/CODEOWNERS"
+            exit 1
+          fi
+
+          # Basic syntax validation
+          echo "✅ CODEOWNERS file exists"
+
+          # Check for valid username/team patterns
+          invalid_patterns=$(grep -E "^[^#\s]" .github/CODEOWNERS | grep -v -E "@[a-zA-Z0-9._-]+(/[a-zA-Z0-9._-]+)?" | grep -v "^\s*$" || true)
+
+          if [ -n "$invalid_patterns" ]; then
+            echo "❌ Found invalid patterns in CODEOWNERS:"
+            echo "$invalid_patterns"
+            echo ""
+            echo "Valid patterns should be:"
+            echo "  @username"
+            echo "  @org/team-name"
+            exit 1
+          fi
+
+          echo "✅ CODEOWNERS syntax validation passed"
+
+      - name: Check file coverage
+        run: |
+          echo "📋 Analyzing CODEOWNERS coverage..."
+
+          # Count rules (excluding comments and empty lines)
+          rule_count=$(grep -E "^[^#\s]" .github/CODEOWNERS | wc -l)
+          echo "📊 Number of ownership rules: $rule_count"
+
+          # Show ownership patterns
+          echo ""
+          echo "🎯 Current ownership patterns:"
+          grep -E "^[^#\s]" .github/CODEOWNERS | head -20
+
+          if [ $rule_count -gt 20 ]; then
+            echo "... and $((rule_count - 20)) more rules"
+          fi
+
+      - name: Validate owner existence
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "👥 Checking if specified owners exist..."
+
+          # Extract all mentioned users/teams
+          owners=$(grep -E "^[^#\s]" .github/CODEOWNERS | grep -oE "@[a-zA-Z0-9._-]+(/[a-zA-Z0-9._-]+)?" | sort -u)
+
+          echo "Found owners:"
+          echo "$owners"
+
+          # Note: In a real scenario, you might want to use GitHub API to validate
+          # that these users/teams actually exist and have access to the repository
+          # This would require a GitHub token with appropriate permissions
+
+          echo "✅ Owner validation completed (basic pattern check)"
+
+      - name: Generate ownership report
+        run: |
+          echo "📊 Generating ownership coverage report..."
+
+          cat > ownership-report.md << 'EOF'
+          # CODEOWNERS Coverage Report
+
+          ## Summary
+
+          EOF
+
+          rule_count=$(grep -E "^[^#\s]" .github/CODEOWNERS | wc -l)
+          echo "- **Total Rules**: $rule_count" >> ownership-report.md
+
+          owners=$(grep -E "^[^#\s]" .github/CODEOWNERS | grep -oE "@[a-zA-Z0-9._-]+(/[a-zA-Z0-9._-]+)?" | sort -u | wc -l)
+          echo "- **Unique Owners**: $owners" >> ownership-report.md
+
+          echo "" >> ownership-report.md
+          echo "## Ownership Rules" >> ownership-report.md
+          echo "" >> ownership-report.md
+          echo "| Pattern | Owner(s) |" >> ownership-report.md
+          echo "|---------|----------|" >> ownership-report.md
+
+          grep -E "^[^#\s]" .github/CODEOWNERS | while IFS= read -r line; do
+            pattern=$(echo "$line" | awk '{print $1}')
+            owners=$(echo "$line" | cut -d' ' -f2-)
+            echo "| \`$pattern\` | $owners |" >> ownership-report.md
+          done
+
+          echo ""
+          echo "📋 Generated ownership report:"
+          cat ownership-report.md
+
+      - name: Upload ownership report
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeowners-report
+          path: ownership-report.md
+          retention-days: 30
+
+  test-codeowners:
+    name: 'Test CODEOWNERS Assignment'
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Simulate ownership assignment
+        run: |
+          echo "🧪 Testing CODEOWNERS assignment for changed files..."
+
+          # Get list of changed files in this PR
+          changed_files=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+
+          if [ -z "$changed_files" ]; then
+            echo "ℹ️ No files changed in this PR"
+            exit 0
+          fi
+
+          echo "📁 Changed files in this PR:"
+          echo "$changed_files"
+          echo ""
+
+          echo "👥 Ownership assignment simulation:"
+          echo "| File | Owner(s) |"
+          echo "|------|----------|"
+
+          # For each changed file, find the matching CODEOWNERS rule
+          echo "$changed_files" | while IFS= read -r file; do
+            # Find the most specific matching rule (CODEOWNERS rules are processed bottom-to-top)
+            owner=$(tac .github/CODEOWNERS | grep -E "^[^#\s]" | while read -r line; do
+              pattern=$(echo "$line" | awk '{print $1}')
+              owners=$(echo "$line" | cut -d' ' -f2-)
+              
+              # Simple pattern matching (this is a basic implementation)
+              case "$file" in
+                $pattern) echo "$owners"; break ;;
+              esac
+            done | head -1)
+            
+            if [ -z "$owner" ]; then
+              owner="No specific owner (fallback to global)"
+            fi
+            
+            echo "| \`$file\` | $owner |"
+          done
+
+          echo ""
+          echo "✅ CODEOWNERS assignment test completed"

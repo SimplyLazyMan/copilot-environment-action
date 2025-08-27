@@ -1,0 +1,146 @@
+# CODEOWNERS for Copilot Environment Action
+# This file defines who owns and is responsible for code review in this repository.
+#
+# Order is important; the last matching pattern takes the most precedence.
+# When someone opens a pull request that only modifies files matching these patterns,
+# the respective code owners will be automatically requested for review.
+#
+# Documentation: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# =============================================================================
+# Global Ownership
+# =============================================================================
+
+# Default owners for everything in the repository
+# These users will be requested for review when someone opens a pull request,
+# unless a later rule overrides them for specific files.
+* @SimplyLazyMan
+
+# =============================================================================
+# Core Action Files
+# =============================================================================
+
+# Action configuration - Critical file that defines the action interface
+action.yml @SimplyLazyMan
+action.yaml @SimplyLazyMan
+
+# Package configuration - Defines dependencies and project metadata
+package.json @SimplyLazyMan
+package-lock.json @SimplyLazyMan
+pnpm-lock.yaml @SimplyLazyMan
+yarn.lock @SimplyLazyMan
+
+# TypeScript configuration
+tsconfig.json @SimplyLazyMan
+tsconfig.*.json @SimplyLazyMan
+
+# =============================================================================
+# Source Code
+# =============================================================================
+
+# Core source code - Main implementation
+src/ @SimplyLazyMan
+
+# Distribution files - Generated but critical for action functionality
+dist/ @SimplyLazyMan
+
+# Library files (if any)
+lib/ @SimplyLazyMan
+
+# =============================================================================
+# GitHub Workflows & Actions
+# =============================================================================
+
+# Workflow files - CI/CD and automation
+.github/workflows/ @SimplyLazyMan
+
+# GitHub configuration
+.github/ @SimplyLazyMan
+
+# This CODEOWNERS file itself
+.github/CODEOWNERS @SimplyLazyMan
+
+# =============================================================================
+# Documentation
+# =============================================================================
+
+# Main documentation files
+README.md @SimplyLazyMan
+CHANGELOG.md @SimplyLazyMan
+ORGANIZATION_USAGE.md @SimplyLazyMan
+
+# Documentation directory (if exists)
+docs/ @SimplyLazyMan
+
+# =============================================================================
+# Configuration Files
+# =============================================================================
+
+# Linting and formatting configuration
+.eslintrc* @SimplyLazyMan
+eslint.config.* @SimplyLazyMan
+.prettierrc* @SimplyLazyMan
+prettier.config.* @SimplyLazyMan
+
+# Testing configuration
+jest.config.* @SimplyLazyMan
+__tests__/ @SimplyLazyMan
+tests/ @SimplyLazyMan
+
+# Git configuration
+.gitignore @SimplyLazyMan
+.gitattributes @SimplyLazyMan
+
+# =============================================================================
+# Legal and Licensing
+# =============================================================================
+
+# License and legal files
+LICENSE @SimplyLazyMan
+LICENSE.* @SimplyLazyMan
+COPYING @SimplyLazyMan
+COPYRIGHT @SimplyLazyMan
+
+# Security files
+SECURITY.md @SimplyLazyMan
+.github/SECURITY.md @SimplyLazyMan
+
+# =============================================================================
+# Dependencies and Lock Files
+# =============================================================================
+
+# Dependency lock files - require careful review for security
+package-lock.json @SimplyLazyMan
+pnpm-lock.yaml @SimplyLazyMan
+yarn.lock @SimplyLazyMan
+
+# =============================================================================
+# Release and Version Management
+# =============================================================================
+
+# Version files
+VERSION @SimplyLazyMan
+.version @SimplyLazyMan
+
+# Release-related workflows (more strict review)
+.github/workflows/release.yml @SimplyLazyMan
+.github/workflows/version-bump.yml @SimplyLazyMan
+
+# =============================================================================
+# Example Usage (if you want to add team ownership)
+# =============================================================================
+
+# If you have a team, you can use team ownership like this:
+# * @SimplyLazyMan/core-team
+# src/ @SimplyLazyMan/developers
+# .github/workflows/ @SimplyLazyMan/devops-team
+# docs/ @SimplyLazyMan/docs-team
+
+# If you want multiple individual owners:
+# * @SimplyLazyMan @other-maintainer
+# src/ @SimplyLazyMan @lead-developer
+
+# If you want different people for different areas:
+# src/managers/ @SimplyLazyMan @backend-lead
+# src/utils/ @SimplyLazyMan @utility-specialist
+# .github/workflows/ @SimplyLazyMan @devops-engineer
