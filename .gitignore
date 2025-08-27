@@ -6,7 +6,7 @@ yarn-error.log*
 pnpm-debug.log*
 
 # Built files
-dist/
+# dist/ - NOTE: For GitHub Actions, dist/ must be committed
 lib/
 *.tsbuildinfo
 
