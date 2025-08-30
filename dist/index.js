@@ -26152,9 +26152,10 @@ function parseInputs() {
         debug: core.getBooleanInput('debug'),
         workingDirectory: core.getInput('working-directory') || process.cwd(),
         autoCommit: core.getBooleanInput('auto-commit'),
-        commitMessage: core.getInput('commit-message') || 'Auto-commit: Environment setup and cleanup',
+        commitMessage: core.getInput('commit-message') ||
+            'Auto-commit: Environment setup and cleanup',
         autoPush: core.getBooleanInput('auto-push'),
-        targetBranch: core.getInput('target-branch') || getCurrentBranch()
+        targetBranch: core.getInput('target-branch') || getCurrentBranch(),
     };
 }
 // Main execution logic
