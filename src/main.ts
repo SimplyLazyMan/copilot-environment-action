@@ -190,20 +190,41 @@ async function executeAuto(
 }
 
 function parseInputs(): ActionInputs {
+  // Get current branch from GITHUB_REF environment variable
+  const getCurrentBranch = (): string => {
+    // GITHUB_REF format: refs/heads/branch-name or refs/pull/PR_NUMBER/merge
+    const githubRef = process.env.GITHUB_REF || '';
+
+    // Extract branch name from refs/heads/branch-name
+    if (githubRef.startsWith('refs/heads/')) {
+      return githubRef.replace('refs/heads/', '');
+    }
+
+    // For pull requests, use GITHUB_HEAD_REF which contains the source branch
+    const headRef = process.env.GITHUB_HEAD_REF;
+    if (headRef) {
+      return headRef;
+    }
+
+    // Fallback to 'main' if we can't determine the branch
+    return 'main';
+  };
+
   return {
-    operation: (core.getInput('operation') || 'auto') as OperationType,
-    flutterVersion: core.getInput('flutter-version') || '3.35.1',
-    nodeVersion: core.getInput('node-version') || 'latest',
+    operation:
+      (core.getInput('operation') as 'setup' | 'cleanup' | 'auto') || 'auto',
+    flutterVersion: core.getInput('flutter-version'),
+    nodeVersion: core.getInput('node-version'),
     disableHooks: core.getBooleanInput('disable-hooks'),
     backupConfigs: core.getBooleanInput('backup-configs'),
     debug: core.getBooleanInput('debug'),
-    workingDirectory: core.getInput('working-directory') || '.',
+    workingDirectory: core.getInput('working-directory') || process.cwd(),
     autoCommit: core.getBooleanInput('auto-commit'),
     commitMessage:
       core.getInput('commit-message') ||
-      'chore: revert copilot environment changes',
+      'Auto-commit: Environment setup and cleanup',
     autoPush: core.getBooleanInput('auto-push'),
-    targetBranch: core.getInput('target-branch') || 'main',
+    targetBranch: core.getInput('target-branch') || getCurrentBranch(),
   };
 }
 

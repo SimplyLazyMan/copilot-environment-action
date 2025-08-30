@@ -25687,9 +25687,7 @@ exports.performEmergencyCleanup = performEmergencyCleanup;
 const core = __importStar(__nccwpck_require__(9999));
 const backup_1 = __nccwpck_require__(249);
 const validation_1 = __nccwpck_require__(7444);
-const gitManager_1 = __nccwpck_require__(8519);
-const hookManager_1 = __nccwpck_require__(8692);
-const configManager_1 = __nccwpck_require__(4355);
+const managers_1 = __nccwpck_require__(9494);
 const constants_1 = __nccwpck_require__(4230);
 async function cleanupEnvironment(inputs, logger) {
     const result = {
@@ -25705,9 +25703,9 @@ async function cleanupEnvironment(inputs, logger) {
         // Initialize managers
         const backupManager = new backup_1.BackupManager(logger, inputs.workingDirectory);
         const validationManager = new validation_1.ValidationManager(logger, inputs.workingDirectory);
-        const gitManager = new gitManager_1.GitManager(logger, inputs.workingDirectory);
-        const hookManager = new hookManager_1.HookManager(logger, inputs.workingDirectory);
-        const configManager = new configManager_1.ConfigManager(logger, inputs.workingDirectory);
+        const gitManager = new managers_1.GitManager(logger, inputs.workingDirectory);
+        const hookManager = new managers_1.HookManager(logger, inputs.workingDirectory);
+        const configManager = new managers_1.ConfigManager(logger, inputs.workingDirectory);
         // Step 1: Load backup information
         logger.info('Step 1: Loading backup information');
         let backupInfo;
@@ -25880,9 +25878,9 @@ async function performEmergencyCleanup(workingDirectory, logger) {
     logger.startGroup('🚨 Performing Emergency Cleanup');
     try {
         logger.warn('Starting emergency cleanup - this will attempt to restore environment without backup');
-        const gitManager = new gitManager_1.GitManager(logger, workingDirectory);
-        const hookManager = new hookManager_1.HookManager(logger, workingDirectory);
-        const configManager = new configManager_1.ConfigManager(logger, workingDirectory);
+        const gitManager = new managers_1.GitManager(logger, workingDirectory);
+        const hookManager = new managers_1.HookManager(logger, workingDirectory);
+        const configManager = new managers_1.ConfigManager(logger, workingDirectory);
         const backupManager = new backup_1.BackupManager(logger, workingDirectory);
         // Re-enable git hooks
         try {
@@ -26129,19 +26127,34 @@ async function executeAuto(inputs, logger) {
     }
 }
 function parseInputs() {
+    // Get current branch from GITHUB_REF environment variable
+    const getCurrentBranch = () => {
+        // GITHUB_REF format: refs/heads/branch-name or refs/pull/PR_NUMBER/merge
+        const githubRef = process.env.GITHUB_REF || '';
+        // Extract branch name from refs/heads/branch-name
+        if (githubRef.startsWith('refs/heads/')) {
+            return githubRef.replace('refs/heads/', '');
+        }
+        // For pull requests, use GITHUB_HEAD_REF which contains the source branch
+        const headRef = process.env.GITHUB_HEAD_REF;
+        if (headRef) {
+            return headRef;
+        }
+        // Fallback to 'main' if we can't determine the branch
+        return 'main';
+    };
     return {
-        operation: (core.getInput('operation') || 'auto'),
-        flutterVersion: core.getInput('flutter-version') || '3.35.1',
-        nodeVersion: core.getInput('node-version') || 'latest',
+        operation: core.getInput('operation') || 'auto',
+        flutterVersion: core.getInput('flutter-version'),
+        nodeVersion: core.getInput('node-version'),
         disableHooks: core.getBooleanInput('disable-hooks'),
         backupConfigs: core.getBooleanInput('backup-configs'),
         debug: core.getBooleanInput('debug'),
-        workingDirectory: core.getInput('working-directory') || '.',
+        workingDirectory: core.getInput('working-directory') || process.cwd(),
         autoCommit: core.getBooleanInput('auto-commit'),
-        commitMessage: core.getInput('commit-message') ||
-            'chore: revert copilot environment changes',
+        commitMessage: core.getInput('commit-message') || 'Auto-commit: Environment setup and cleanup',
         autoPush: core.getBooleanInput('auto-push'),
-        targetBranch: core.getInput('target-branch') || 'main',
+        targetBranch: core.getInput('target-branch') || getCurrentBranch()
     };
 }
 // Main execution logic
@@ -27124,6 +27137,27 @@ exports.HookManager = HookManager;
 
 /***/ }),
 
+/***/ 9494:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.RuntimeManager = exports.PackageManager = exports.HookManager = exports.GitManager = exports.ConfigManager = void 0;
+var configManager_1 = __nccwpck_require__(4355);
+Object.defineProperty(exports, "ConfigManager", ({ enumerable: true, get: function () { return configManager_1.ConfigManager; } }));
+var gitManager_1 = __nccwpck_require__(8519);
+Object.defineProperty(exports, "GitManager", ({ enumerable: true, get: function () { return gitManager_1.GitManager; } }));
+var hookManager_1 = __nccwpck_require__(8692);
+Object.defineProperty(exports, "HookManager", ({ enumerable: true, get: function () { return hookManager_1.HookManager; } }));
+var packageManager_1 = __nccwpck_require__(9703);
+Object.defineProperty(exports, "PackageManager", ({ enumerable: true, get: function () { return packageManager_1.PackageManager; } }));
+var runtimeManager_1 = __nccwpck_require__(975);
+Object.defineProperty(exports, "RuntimeManager", ({ enumerable: true, get: function () { return runtimeManager_1.RuntimeManager; } }));
+
+
+/***/ }),
+
 /***/ 9703:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -27858,11 +27892,7 @@ exports.setupEnvironment = setupEnvironment;
 const core = __importStar(__nccwpck_require__(9999));
 const backup_1 = __nccwpck_require__(249);
 const validation_1 = __nccwpck_require__(7444);
-const gitManager_1 = __nccwpck_require__(8519);
-const hookManager_1 = __nccwpck_require__(8692);
-const configManager_1 = __nccwpck_require__(4355);
-const packageManager_1 = __nccwpck_require__(9703);
-const runtimeManager_1 = __nccwpck_require__(975);
+const managers_1 = __nccwpck_require__(9494);
 const constants_1 = __nccwpck_require__(4230);
 async function setupEnvironment(inputs, logger) {
     const result = {
@@ -27876,11 +27906,11 @@ async function setupEnvironment(inputs, logger) {
         // Initialize managers
         const backupManager = new backup_1.BackupManager(logger, inputs.workingDirectory);
         const validationManager = new validation_1.ValidationManager(logger, inputs.workingDirectory);
-        const gitManager = new gitManager_1.GitManager(logger, inputs.workingDirectory);
-        const hookManager = new hookManager_1.HookManager(logger, inputs.workingDirectory);
-        const configManager = new configManager_1.ConfigManager(logger, inputs.workingDirectory);
-        const packageManager = new packageManager_1.PackageManager(logger, inputs.workingDirectory);
-        const runtimeManager = new runtimeManager_1.RuntimeManager(logger, inputs.workingDirectory);
+        const gitManager = new managers_1.GitManager(logger, inputs.workingDirectory);
+        const hookManager = new managers_1.HookManager(logger, inputs.workingDirectory);
+        const configManager = new managers_1.ConfigManager(logger, inputs.workingDirectory);
+        const packageManager = new managers_1.PackageManager(logger, inputs.workingDirectory);
+        const runtimeManager = new managers_1.RuntimeManager(logger, inputs.workingDirectory);
         // Step 1: Check and setup runtime environments
         logger.info('Step 1: Checking runtime environments');
         const runtimeInfo = await runtimeManager.checkRuntimes();
@@ -28028,9 +28058,9 @@ async function rollbackSetup(backupInfo, inputs, logger) {
     logger.startGroup('🔄 Rolling back setup changes');
     try {
         const backupManager = new backup_1.BackupManager(logger, inputs.workingDirectory);
-        const gitManager = new gitManager_1.GitManager(logger, inputs.workingDirectory);
-        const hookManager = new hookManager_1.HookManager(logger, inputs.workingDirectory);
-        const configManager = new configManager_1.ConfigManager(logger, inputs.workingDirectory);
+        const gitManager = new managers_1.GitManager(logger, inputs.workingDirectory);
+        const hookManager = new managers_1.HookManager(logger, inputs.workingDirectory);
+        const configManager = new managers_1.ConfigManager(logger, inputs.workingDirectory);
         // Restore git configuration
         if (backupInfo.gitConfig) {
             await gitManager.restoreGitConfig(backupInfo.gitConfig);

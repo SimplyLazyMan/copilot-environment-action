@@ -83,3 +83,21 @@ export interface ActionOutputs {
   changesCommitted: boolean;
   changesPushed: boolean;
 }
+
+export interface RuntimeInfo {
+  flutter: {
+    installed: boolean;
+    version?: string;
+    channel?: string;
+    path?: string;
+  };
+  node: {
+    installed: boolean;
+    version?: string;
+    path?: string;
+  };
+  npm: {
+    installed: boolean;
+    version?: string;
+  };
+}

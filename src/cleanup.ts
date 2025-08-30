@@ -3,9 +3,7 @@ import { CleanupResult, ActionInputs, BackupInfo } from './types/interfaces';
 import { Logger } from './utils/logger';
 import { BackupManager } from './utils/backup';
 import { ValidationManager } from './utils/validation';
-import { GitManager } from './managers/gitManager';
-import { HookManager } from './managers/hookManager';
-import { ConfigManager } from './managers/configManager';
+import { ConfigManager, GitManager, HookManager } from './managers';
 import { CONSTANTS, ERROR_MESSAGES } from './utils/constants';
 
 export async function cleanupEnvironment(

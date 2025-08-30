@@ -48,9 +48,9 @@ inputs:
     required: false
     default: 'false'
   target-branch:
-    description: 'Target branch for auto-commit and push'
+    description: 'Target branch for auto-commit and push (defaults to current branch)'
     required: false
-    default: 'main'
+    default: ''
 
 outputs:
   setup-successful:

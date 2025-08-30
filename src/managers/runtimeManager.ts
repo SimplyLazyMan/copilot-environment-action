@@ -2,24 +2,7 @@ import * as exec from '@actions/exec';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Logger } from '../utils/logger';
-
-export interface RuntimeInfo {
-  flutter: {
-    installed: boolean;
-    version?: string;
-    channel?: string;
-    path?: string;
-  };
-  node: {
-    installed: boolean;
-    version?: string;
-    path?: string;
-  };
-  npm: {
-    installed: boolean;
-    version?: string;
-  };
-}
+import { RuntimeInfo } from '../types/interfaces';
 
 export class RuntimeManager {
   constructor(
@@ -417,7 +400,9 @@ export class RuntimeManager {
     return result || '';
   }
 
-  async validateProjectType(): Promise<string> {
+  async validateProjectType(): Promise<
+    'flutter' | 'node' | 'mixed' | 'unknown'
+  > {
     const workingDir = this.workingDirectory;
 
     // Check for Flutter project

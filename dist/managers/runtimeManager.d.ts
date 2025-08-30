@@ -1,21 +1,5 @@
 import { Logger } from '../utils/logger';
-export interface RuntimeInfo {
-    flutter: {
-        installed: boolean;
-        version?: string;
-        channel?: string;
-        path?: string;
-    };
-    node: {
-        installed: boolean;
-        version?: string;
-        path?: string;
-    };
-    npm: {
-        installed: boolean;
-        version?: string;
-    };
-}
+import { RuntimeInfo } from '../types/interfaces';
 export declare class RuntimeManager {
     private logger;
     private workingDirectory;
@@ -34,5 +18,5 @@ export declare class RuntimeManager {
     private installNodeUnix;
     normalizeVersion(version: string): string;
     extractMajorVersion(version: string): string;
-    validateProjectType(): Promise<string>;
+    validateProjectType(): Promise<'flutter' | 'node' | 'mixed' | 'unknown'>;
 }

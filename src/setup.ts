@@ -4,11 +4,13 @@ import { PackageManager as PackageManagerType } from './types/enums';
 import { Logger } from './utils/logger';
 import { BackupManager } from './utils/backup';
 import { ValidationManager } from './utils/validation';
-import { GitManager } from './managers/gitManager';
-import { HookManager } from './managers/hookManager';
-import { ConfigManager } from './managers/configManager';
-import { PackageManager } from './managers/packageManager';
-import { RuntimeManager } from './managers/runtimeManager';
+import {
+  ConfigManager,
+  GitManager,
+  HookManager,
+  PackageManager,
+  RuntimeManager,
+} from './managers';
 import { CONSTANTS, ERROR_MESSAGES } from './utils/constants';
 
 export async function setupEnvironment(
